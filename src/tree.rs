@@ -3,40 +3,64 @@ use core::borrow::Borrow;
 use core::cmp::Ord;
 use core::fmt;
 
-use super::{
-    forest_size, init_forest, Error, KeysIterator, PairsIterator, RBForest, ValuesIterator,
+use super::forest::{
+    forest_size, init_forest, ForestParams, KeysIterator, PairsIterator, RBForest, ValuesIterator,
 };
+use super::Error;
 
+/// Parameters required to calculate [`RBTree`] size
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct TreeParams {
+    ///  key buffer size
+    pub k_size: usize,
+    ///  value buffer size
+    pub v_size: usize,
+}
 /// Returns the required size of the slice
-/// * `k_size` --- key buffer size
-/// * `v_size` --- value buffer size
-/// * `max_nodes` --- maximum number of nodes in the tree
 #[must_use]
 #[inline]
-pub fn tree_size(k_size: usize, v_size: usize, max_nodes: usize) -> usize {
-    forest_size(k_size, v_size, max_nodes, 1)
+pub fn tree_size(params: TreeParams, max_nodes: usize) -> usize {
+    forest_size(
+        ForestParams {
+            k_size: params.k_size,
+            v_size: params.v_size,
+            max_roots: 1,
+        },
+        max_nodes,
+    )
 }
 
 /// Initializes [`RBTree`] in the given slice without returning it
 ///
 /// This function can be used than you don't know buffer sizes at compile time.
-///
-/// * `k_size` --- key buffer size
-/// * `v_size` --- value buffer size
-/// * `slice` --- a place, where the tree should be initialized
 #[inline]
-pub fn init_tree(k_size: usize, v_size: usize, slice: &mut [u8]) -> Result<(), Error> {
-    init_forest(k_size, v_size, slice, 1)
+pub fn init_tree(params: TreeParams, slice: &mut [u8]) -> Result<(), Error> {
+    init_forest(
+        ForestParams {
+            k_size: params.k_size,
+            v_size: params.v_size,
+            max_roots: 1,
+        },
+        slice,
+    )
 }
 
 /// A slice-based Red-Black tree
 ///
 /// Let's assume you want to create a tree holding up to 100 pairs of `u8 <-> f64`:
 /// ```
-/// use slice_rbtree::{tree_size, RBTree};
+/// use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
+/// use std::mem::size_of;
+///
 /// // RBTree requires input slice to have a proper size
-/// // 1 == size_of::<u8>(), 8 == size_of::<f64>()
-/// let size = tree_size(1, 8, 100);
+/// let size = tree_size(
+///     TreeParams {
+///         k_size: size_of::<u8>(),
+///         v_size: size_of::<f64>(),
+///     },
+///     100,
+/// );
+///
 /// let mut buffer = vec![0; size];
 ///
 /// let mut tree: RBTree<u8, f64, 1, 8> = RBTree::init_slice(&mut buffer).unwrap();

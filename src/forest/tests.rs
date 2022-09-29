@@ -469,7 +469,17 @@ fn too_small() {
 
 #[test]
 fn fractional_node_count() {
-    let mut vec = vec![0; forest_size(1, 1, 1, 1) + 1];
+    let mut vec = vec![
+        0;
+        forest_size(
+            ForestParams {
+                k_size: 1,
+                v_size: 1,
+                max_roots: 1
+            },
+            1
+        ) + 1
+    ];
     let tree = RBForest::<u8, u8, 1, 1>::init_slice(vec.as_mut_slice(), 1).unwrap_err();
     assert_eq!(tree, Error::WrongSliceSize);
 }
@@ -546,7 +556,15 @@ mod init_forest_tests {
         RBForest::<i32, u32, KSIZE, VSIZE>::init_slice(reference_vec.as_mut_slice(), max_roots)
             .unwrap();
 
-        init_forest(KSIZE, VSIZE, testing_vec.as_mut_slice(), max_roots).unwrap();
+        init_forest(
+            ForestParams {
+                k_size: KSIZE,
+                v_size: VSIZE,
+                max_roots,
+            },
+            testing_vec.as_mut_slice(),
+        )
+        .unwrap();
 
         assert_eq!(testing_vec, reference_vec);
     }
@@ -580,7 +598,13 @@ mod init_forest {
     fn init() {
         let mut vec = create_vec(4, 4, 5, 1);
 
-        init_forest(4, 4, vec.as_mut_slice(), 1).unwrap();
+        let params = ForestParams {
+            k_size: 4,
+            v_size: 4,
+            max_roots: 1,
+        };
+        
+        init_forest(params, vec.as_mut_slice()).unwrap();
         let mut tree =
             unsafe { RBForest::<i32, u32, 4, 4>::from_slice(vec.as_mut_slice()).unwrap() };
         assert!(tree.is_empty(0));
@@ -617,14 +641,24 @@ mod init_forest {
     #[test]
     fn too_small() {
         let mut vec = vec![1, 2, 3];
-        let tree = init_forest(1, 1, vec.as_mut_slice(), 1).unwrap_err();
+        let params = ForestParams {
+            k_size: 1,
+            v_size: 1,
+            max_roots: 1,
+        };
+        let tree = init_forest(params, vec.as_mut_slice()).unwrap_err();
         assert_eq!(tree, Error::TooSmall);
     }
 
     #[test]
     fn fractional_node_count() {
-        let mut vec = vec![0; forest_size(1, 1, 1, 1) + 1];
-        let tree = init_forest(1, 1, vec.as_mut_slice(), 1).unwrap_err();
+        let params = ForestParams {
+            k_size: 1,
+            v_size: 1,
+            max_roots: 1,
+        };
+        let mut vec = vec![0; forest_size(params, 1) + 1];
+        let tree = init_forest(params, vec.as_mut_slice()).unwrap_err();
         assert_eq!(tree, Error::WrongSliceSize);
     }
 }

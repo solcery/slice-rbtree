@@ -15,32 +15,32 @@ pub(crate) use node::Node;
 
 use super::Error;
 
+/// Parameters required to calculate [`RBForest`] size
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
+pub struct ForestParams {
+    ///  key buffer size
+    pub k_size: usize,
+    ///  value buffer size
+    pub v_size: usize,
+    ///  maximum number of trees in the forest
+    pub max_roots: usize,
+}
+
 /// Returns the required size of the slice
-/// * `k_size` --- key buffer size
-/// * `v_size` --- value buffer size
-/// * `max_nodes` --- maximum number of nodes in the tree
-/// * `max_roots` --- maximum number of trees in the forest
 #[must_use]
 #[inline]
-pub fn forest_size(k_size: usize, v_size: usize, max_nodes: usize, max_roots: usize) -> usize {
+pub fn forest_size(params: ForestParams, max_nodes: usize) -> usize {
     mem::size_of::<Header>()
-        + (mem::size_of::<Node<0, 0>>() + k_size + v_size) * max_nodes
-        + 4 * max_roots
+        + (mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size) * max_nodes
+        + 4 * params.max_roots
 }
 
 /// Initializes [`super::RBTree`] in the given slice without returning it
 ///
 /// This function can be used than you don't know buffer sizes at compile time.
-///
-/// * `k_size` --- key buffer size
-/// * `v_size` --- value buffer size
-/// * `max_roots` --- maximum number of trees in the forest
-/// * `slice` --- a place, where the forest should be initialized
 pub fn init_forest(
-    k_size: usize,
-    v_size: usize,
+    params: ForestParams,
     slice: &mut [u8],
-    max_roots: usize,
 ) -> Result<(), Error> {
     if slice.len() <= mem::size_of::<Header>() {
         return Err(Error::TooSmall);
@@ -48,13 +48,13 @@ pub fn init_forest(
 
     let (header, tail) = slice.split_at_mut(mem::size_of::<Header>());
 
-    if tail.len() <= max_roots * 4 {
+    if tail.len() <= params.max_roots * 4 {
         return Err(Error::TooSmall);
     }
 
-    let (nodes, roots) = tail.split_at_mut(tail.len() - max_roots * 4);
+    let (nodes, roots) = tail.split_at_mut(tail.len() - params.max_roots * 4);
 
-    if nodes.len() % (mem::size_of::<Node<0, 0>>() + k_size + v_size) != 0 {
+    if nodes.len() % (mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size) != 0 {
         return Err(Error::WrongSliceSize);
     }
 
@@ -70,12 +70,12 @@ pub fn init_forest(
     // Since size_of<Node<k,v>> depends on k and v, which is unknown at compile-time, we can not
     // cast from &[u8] to &[Node<_,_>]. However, Node memory layout is stabilized, so here we will
     // properly initialize nodes by offsetting to the needed fields.
-    let mut nodes = nodes.chunks_exact_mut(mem::size_of::<Node<0, 0>>() + k_size + v_size);
+    let mut nodes = nodes.chunks_exact_mut(mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size);
 
     let nodes_len = nodes.len() as u32;
 
     // parent field occupy 4 bytes starting from (k_size + v_size + 4 + 4) in big-endian.
-    let parent_offset = k_size + v_size + 4 + 4;
+    let parent_offset = params.k_size + params.v_size + 4 + 4;
     // Bit flags occupy parent_offset + 4, is_parent_present is bit 3.
     let flags_offset = parent_offset + 4;
     if let Some(first_node) = nodes.next() {
@@ -94,10 +94,10 @@ pub fn init_forest(
 
     unsafe {
         header.fill(
-            k_size as u16,
-            v_size as u16,
+            params.k_size as u16,
+            params.v_size as u16,
             nodes_len,
-            max_roots as u32,
+            params.max_roots as u32,
             Some(nodes_len - 1),
         );
     }
@@ -115,10 +115,10 @@ pub fn init_forest(
 /// the API of [`RBForest`] mimics [`RBTree`](super::RBTree) but with one additional argument: index of the tree.
 ///
 ///```
-/// use slice_rbtree::{forest_size, RBForest};
+/// use slice_rbtree::forest::{forest_size, RBForest, ForestParams};
 /// // RBTree requires input slice to have a proper size
 /// // Each node in the `RBTree` has a fixed size known at compile time, so to estimate this size `KSIZE` and `VSIZE` parameters should passed to forest_size
-/// let size = forest_size(50, 50, 10, 2);
+/// let size = forest_size(ForestParams {k_size: 50, v_size: 50, max_roots: 2}, 10);
 /// let mut buffer = vec![0; size];
 /// // `String` type has variable length, but we have to chose some fixed maximum length (50 bytes for both key and value)
 /// let mut reviews: RBForest<String, String, 50, 50> = RBForest::init_slice(&mut buffer, 2).unwrap();
