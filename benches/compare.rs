@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use slice_rbtree::{tree_size, RBTree};
+use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
 use std::collections::BTreeMap;
 
 const SIZES: [u32; 8] = [10, 20, 40, 80, 160, 320, 640, 1280];
@@ -32,8 +32,10 @@ fn access_one_value(c: &mut Criterion) {
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];
@@ -89,8 +91,10 @@ fn deserialization(c: &mut Criterion) {
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];
@@ -150,8 +154,10 @@ fn add_one_value(c: &mut Criterion) {
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];

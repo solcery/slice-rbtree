@@ -77,8 +77,11 @@ use core::marker::PhantomData;
 use core::mem;
 
 mod internals;
+pub mod iterators;
 
 pub(crate) use internals::{Header, Node};
+
+use iterators::{KeysIterator, PairsIterator, ValuesIterator};
 
 use super::Error;
 
@@ -467,28 +470,28 @@ where
     /// Creates an iterator over key-value pairs, in order by key
     #[must_use]
     pub fn pairs<'b>(&'b self, tree_id: usize) -> PairsIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        PairsIterator {
-            next_node: self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-            tree: self,
-        }
+        PairsIterator::from_raw_parts(
+            self,
+            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+        )
     }
 
     /// Creates an iterator over keys, from smallest to biggest
     #[must_use]
     pub fn keys<'b>(&'b self, tree_id: usize) -> KeysIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        KeysIterator {
-            next_node: self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-            tree: self,
-        }
+        KeysIterator::from_raw_parts(
+            self,
+            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+        )
     }
 
     /// Creates an iterator over values, in order by key
     #[must_use]
     pub fn values<'b>(&'b self, tree_id: usize) -> ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        ValuesIterator {
-            next_node: self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-            tree: self,
-        }
+        ValuesIterator::from_raw_parts(
+            self,
+            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+        )
     }
 
     /// Returns the first key-value pair in the map
@@ -1164,190 +1167,6 @@ where
         f.debug_map()
             .entries((0..max_roots).map(|i| (i, self.pairs(i))))
             .finish()
-    }
-}
-
-#[doc(hidden)]
-pub struct PairsIterator<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    next_node: Option<usize>,
-    tree: &'a RBForest<'b, K, V, KSIZE, VSIZE>,
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> Iterator
-    for PairsIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    type Item = (K, V);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_node.map(|mut id| {
-            let nodes = &self.tree.nodes;
-
-            let key = K::deserialize(&mut nodes[id].key.as_slice()).expect("Key corrupted");
-            let value = V::deserialize(&mut nodes[id].value.as_slice()).expect("Value corrupted");
-
-            // find next
-            if let Some(right_id) = nodes[id].right() {
-                self.next_node = Some(self.tree.min(right_id as usize));
-            } else {
-                self.next_node = None;
-                while let Some(parent_id) = nodes[id].parent() {
-                    let parent_id = parent_id as usize;
-                    if Some(id as u32) == nodes[parent_id].left() {
-                        self.next_node = Some(parent_id);
-                        break;
-                    } else {
-                        id = parent_id;
-                    }
-                }
-            }
-
-            (key, value)
-        })
-    }
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug
-    for PairsIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
-    V: BorshDeserialize + BorshSerialize + fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        let PairsIterator { next_node, tree } = self;
-        let new_iter = PairsIterator {
-            next_node: *next_node,
-            tree,
-        };
-        f.debug_map().entries(new_iter).finish()
-    }
-}
-
-#[doc(hidden)]
-pub struct KeysIterator<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    next_node: Option<usize>,
-    tree: &'a RBForest<'b, K, V, KSIZE, VSIZE>,
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> Iterator
-    for KeysIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    type Item = K;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_node.map(|mut id| {
-            let nodes = &self.tree.nodes;
-
-            let key = K::deserialize(&mut nodes[id].key.as_slice()).expect("Key corrupted");
-
-            // find next
-            if let Some(right_id) = nodes[id].right() {
-                self.next_node = Some(self.tree.min(right_id as usize));
-            } else {
-                self.next_node = None;
-                while let Some(parent_id) = nodes[id].parent() {
-                    let parent_id = parent_id as usize;
-                    if Some(id as u32) == nodes[parent_id].left() {
-                        self.next_node = Some(parent_id);
-                        break;
-                    } else {
-                        id = parent_id;
-                    }
-                }
-            }
-
-            key
-        })
-    }
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug
-    for KeysIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
-    V: BorshDeserialize + BorshSerialize + fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        let KeysIterator { next_node, tree } = self;
-        let new_iter = KeysIterator {
-            next_node: *next_node,
-            tree,
-        };
-        f.debug_set().entries(new_iter).finish()
-    }
-}
-
-#[doc(hidden)]
-pub struct ValuesIterator<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    next_node: Option<usize>,
-    tree: &'a RBForest<'b, K, V, KSIZE, VSIZE>,
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> Iterator
-    for ValuesIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize,
-    V: BorshDeserialize + BorshSerialize,
-{
-    type Item = V;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.next_node.map(|mut id| {
-            let nodes = &self.tree.nodes;
-
-            let value = V::deserialize(&mut nodes[id].value.as_slice()).expect("Value corrupted");
-
-            // find next
-            if let Some(right_id) = nodes[id].right() {
-                self.next_node = Some(self.tree.min(right_id as usize));
-            } else {
-                self.next_node = None;
-                while let Some(parent_id) = nodes[id].parent() {
-                    let parent_id = parent_id as usize;
-                    if Some(id as u32) == nodes[parent_id].left() {
-                        self.next_node = Some(parent_id);
-                        break;
-                    } else {
-                        id = parent_id;
-                    }
-                }
-            }
-
-            value
-        })
-    }
-}
-
-impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug
-    for ValuesIterator<'a, 'b, K, V, KSIZE, VSIZE>
-where
-    K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
-    V: BorshDeserialize + BorshSerialize + fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        let ValuesIterator { next_node, tree } = self;
-        let new_iter = ValuesIterator {
-            next_node: *next_node,
-            tree,
-        };
-        f.debug_set().entries(new_iter).finish()
     }
 }
 
