@@ -10,10 +10,18 @@
 //! # A  small example
 //! Let's assume you want to create a tree holding up to 100 pairs of `u8 <-> f64`:
 //! ```
-//! use slice_rbtree::{tree_size, RBTree};
+//! use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
+//! use std::mem::size_of;
+//!
 //! // RBTree requires input slice to have a proper size
-//! // 1 == size_of::<u8>(), 8 == size_of::<f64>()
-//! let size = tree_size(1, 8, 100);
+//! let size = tree_size(
+//!     TreeParams {
+//!         k_size: size_of::<u8>(),
+//!         v_size: size_of::<f64>(),
+//!     },
+//!     100,
+//! );
+//!
 //! let mut buffer = vec![0; size];
 //!
 //! let mut tree: RBTree<u8, f64, 1, 8> = RBTree::init_slice(&mut buffer).unwrap();
@@ -33,12 +41,8 @@
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-mod forest;
-mod tree;
-
-pub use forest::{forest_size, init_forest, RBForest};
-pub use forest::{KeysIterator, PairsIterator, ValuesIterator};
-pub use tree::{init_tree, tree_size, RBTree};
+pub mod forest;
+pub mod tree;
 
 /// Possible errors for [`RBTree`] and [`RBForest`]
 #[derive(Debug, PartialEq, Eq, Copy, Clone, BorshDeserialize, BorshSerialize)]
