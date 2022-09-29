@@ -34,9 +34,9 @@ pub fn init_tree(k_size: usize, v_size: usize, slice: &mut [u8]) -> Result<(), E
 /// Let's assume you want to create a tree holding up to 100 pairs of `u8 <-> f64`:
 /// ```
 /// use slice_rbtree::{tree_size, RBTree};
+/// use std::mem;
 /// // RBTree requires input slice to have a proper size
-/// // 1 == size_of::<u8>(), 8 == size_of::<f64>()
-/// let size = tree_size(1, 8, 100);
+/// let size = tree_size(mem::size_of::<u8>(), mem::size_of::<f64>(), 100);
 /// let mut buffer = vec![0; size];
 ///
 /// let mut tree: RBTree<u8, f64, 1, 8> = RBTree::init_slice(&mut buffer).unwrap();
