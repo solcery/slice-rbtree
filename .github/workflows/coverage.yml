@@ -1,0 +1,36 @@
+name: Coverage
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  pull_request:
+    branches: [ dev ]
+
+  workflow_dispatch:
+jobs:
+  test:
+    name: coverage
+    runs-on: ubuntu-latest
+    container:
+      image: xd009642/tarpaulin:develop-nightly
+      options: --security-opt seccomp=unconfined
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
+      - name: Install nightly toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly-2022-03-22
+          default: true
+          override: true
+
+      - name: Generate code coverage
+        run: cargo tarpaulin --workspace --out Xml --verbose
+
+      - name: Upload to codecov.io
+        uses: codecov/codecov-action@v2
+        with:
+          fail_ci_if_error: true
+          verbose: true
