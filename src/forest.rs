@@ -1,3 +1,72 @@
+//! A slice-based forest of Red-Black trees
+//!
+//! It sometimes happens, that you have to use a set of similar trees of unknown size. In that
+//! case you could allocate such trees in different slices, but it will be very ineffective: you
+//! have to think about capacity of each tree beforehand and it is still possible, that some trees
+//! will be full, while others are (almost) empty.
+//!
+//! [`RBForest`] solves this issue, by using a common node pool for a set of trees.
+//! the API of [`RBForest`] mimics [`RBTree`](super::tree::RBTree) but with one additional argument: index of the tree.
+//!
+//!```
+//! use slice_rbtree::forest::{forest_size, RBForest, ForestParams};
+//! // RBTree requires input slice to have a proper size
+//! // Each node in the `RBTree` has a fixed size known at compile time, so to estimate this size `KSIZE` and `VSIZE` parameters should passed to forest_size
+//! let size = forest_size(ForestParams {k_size: 50, v_size: 50, max_roots: 2}, 10);
+//! let mut buffer = vec![0; size];
+//! // `String` type has variable length, but we have to chose some fixed maximum length (50 bytes for both key and value)
+//! let mut reviews: RBForest<String, String, 50, 50> = RBForest::init_slice(&mut buffer, 2).unwrap();
+//!
+//! // Let tree 0 be the movie tree and tree 1 - the book tree
+//!
+//! // review some movies.
+//! reviews.insert(0,"Office Space".to_string(),       "Deals with real issues in the workplace.".to_string());
+//! reviews.insert(0,"Pulp Fiction".to_string(),       "Masterpiece.".to_string());
+//! reviews.insert(0,"The Godfather".to_string(),      "Very enjoyable.".to_string());
+//! reviews.insert(0,"The Blues Brothers".to_string(), "Eye lyked it a lot.".to_string());
+//!
+//! // review some books
+//! reviews.insert(1,"Fight club".to_string(),       "Brad Pitt is cool!".to_string());
+//! reviews.insert(1,"Alice in Wonderland".to_string(),       "Deep than you think.".to_string());
+//! reviews.insert(1,"1984".to_string(),      "A scary dystopia.".to_string());
+//! reviews.insert(1,"The Lord of the Rings".to_string(), "Poor Gollum.".to_string());
+//!
+//! // check for a specific one.
+//! if !reviews.contains_key(0,"Les Misérables") {
+//!     println!("We've got {} movie reviews, but Les Misérables ain't one.",
+//!              reviews.len(0));
+//! }
+//! if reviews.contains_key(1,"1984") {
+//!     println!("We've got {} book reviews and 1984 among them: {}.",
+//!              reviews.len(0), reviews.get(1, "1984").unwrap());
+//! }
+//!
+//! // oops, this review has a lot of spelling mistakes, let's delete it.
+//! reviews.remove(0, "The Blues Brothers");
+//!
+//! // look up the values associated with some keys.
+//! let to_find = ["Up!".to_string(), "Office Space".to_string()];
+//! for movie in &to_find {
+//!     match reviews.get(0, movie) {
+//!        Some(review) => println!("{movie}: {review}"),
+//!        None => println!("{movie} is unreviewed.")
+//!     }
+//! }
+//!
+//! // iterate over movies.
+//! for (movie, review) in reviews.pairs(0) {
+//!     println!("{movie}: \"{review}\"");
+//! }
+//!
+//! // Too many reviews, delete them all!
+//! reviews.clear();
+//! assert!(reviews.is_empty(0));
+//! assert!(reviews.is_empty(1));
+//! ```
+//!
+//! # Internal structure
+//! To read about internal data layout, compile docs with `--document-private-items` and see
+//! [`internals`] module.
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast_mut, cast_slice_mut};
 use core::borrow::Borrow;
@@ -7,11 +76,9 @@ use core::fmt;
 use core::marker::PhantomData;
 use core::mem;
 
-mod header;
-mod node;
+mod internals;
 
-pub(crate) use header::Header;
-pub(crate) use node::Node;
+pub(crate) use internals::{Header, Node};
 
 use super::Error;
 
@@ -35,13 +102,10 @@ pub fn forest_size(params: ForestParams, max_nodes: usize) -> usize {
         + 4 * params.max_roots
 }
 
-/// Initializes [`super::RBTree`] in the given slice without returning it
+/// Initializes [`RBForest`] in the given slice without returning it
 ///
 /// This function can be used than you don't know buffer sizes at compile time.
-pub fn init_forest(
-    params: ForestParams,
-    slice: &mut [u8],
-) -> Result<(), Error> {
+pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> {
     if slice.len() <= mem::size_of::<Header>() {
         return Err(Error::TooSmall);
     }
@@ -70,7 +134,8 @@ pub fn init_forest(
     // Since size_of<Node<k,v>> depends on k and v, which is unknown at compile-time, we can not
     // cast from &[u8] to &[Node<_,_>]. However, Node memory layout is stabilized, so here we will
     // properly initialize nodes by offsetting to the needed fields.
-    let mut nodes = nodes.chunks_exact_mut(mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size);
+    let mut nodes =
+        nodes.chunks_exact_mut(mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size);
 
     let nodes_len = nodes.len() as u32;
 
@@ -105,92 +170,6 @@ pub fn init_forest(
 }
 
 /// A slice-based forest of Red-Black trees
-///
-/// It sometimes happens, that you have to use a set of similar trees of unknown size. In that
-/// case you could allocate such trees in different slices, but it will be very ineffective: you
-/// have to think about capacity of each tree beforehand and it is still possible, that some trees
-/// will be full, while others are (almost) empty.
-///
-/// [`RBForest`] solves this issue, by using a common node pool for a set of trees.
-/// the API of [`RBForest`] mimics [`RBTree`](super::RBTree) but with one additional argument: index of the tree.
-///
-///```
-/// use slice_rbtree::{forest_size, RBForest};
-/// // RBTree requires input slice to have a proper size
-/// // Each node in the `RBTree` has a fixed size known at compile time, so to estimate this size `KSIZE` and `VSIZE` parameters should passed to forest_size
-/// let size = forest_size(50, 50, 10, 2);
-/// let mut buffer = vec![0; size];
-/// // `String` type has variable length, but we have to chose some fixed maximum length (50 bytes for both key and value)
-/// let mut reviews: RBForest<String, String, 50, 50> = RBForest::init_slice(&mut buffer, 2).unwrap();
-///
-/// // Let tree 0 be the movie tree and tree 1 - the book tree
-///
-/// // review some movies.
-/// reviews.insert(0,"Office Space".to_string(),       "Deals with real issues in the workplace.".to_string());
-/// reviews.insert(0,"Pulp Fiction".to_string(),       "Masterpiece.".to_string());
-/// reviews.insert(0,"The Godfather".to_string(),      "Very enjoyable.".to_string());
-/// reviews.insert(0,"The Blues Brothers".to_string(), "Eye lyked it a lot.".to_string());
-///
-/// // review some books
-/// reviews.insert(1,"Fight club".to_string(),       "Brad Pitt is cool!".to_string());
-/// reviews.insert(1,"Alice in Wonderland".to_string(),       "Deep than you think.".to_string());
-/// reviews.insert(1,"1984".to_string(),      "A scary dystopia.".to_string());
-/// reviews.insert(1,"The Lord of the Rings".to_string(), "Poor Gollum.".to_string());
-///
-/// // check for a specific one.
-/// if !reviews.contains_key(0,"Les Misérables") {
-///     println!("We've got {} movie reviews, but Les Misérables ain't one.",
-///              reviews.len(0));
-/// }
-/// if reviews.contains_key(1,"1984") {
-///     println!("We've got {} book reviews and 1984 among them: {}.",
-///              reviews.len(0), reviews.get(1, "1984").unwrap());
-/// }
-///
-/// // oops, this review has a lot of spelling mistakes, let's delete it.
-/// reviews.remove(0, "The Blues Brothers");
-///
-/// // look up the values associated with some keys.
-/// let to_find = ["Up!".to_string(), "Office Space".to_string()];
-/// for movie in &to_find {
-///     match reviews.get(0, movie) {
-///        Some(review) => println!("{movie}: {review}"),
-///        None => println!("{movie} is unreviewed.")
-///     }
-/// }
-///
-/// // iterate over movies.
-/// for (movie, review) in reviews.pairs(0) {
-///     println!("{movie}: \"{review}\"");
-/// }
-///
-/// // Too many reviews, delete them all!
-/// reviews.clear();
-/// assert!(reviews.is_empty(0));
-/// assert!(reviews.is_empty(1));
-/// ```
-///
-/// # Internal structure
-///
-/// > **Warning:** this section contains links to internal structures, not exposed in the public API
-/// If you want to look at them, compile documentation with `--document-private-items` flag
-///
-/// Each [`RBForest`] consists of [`Header`], array of the tree roots and a pool of [`Nodes`](Node).
-/// All this structs are designed in such a way, that they does not have any alignment requirements
-/// (all of them are byte-aligned).
-/// [`Header`] contains parameters and sizes of sections and a magic string [`HEADER_MAGIC`](header::HEADER_MAGIC) used to check, that the given slice is indeed [`RBForest`].
-///
-/// After the [`Header`] the array of `max_roots` (see [`Header`] docs) indices is placed. Indices
-/// are `Option<u32>` encoded as big-endian  `u32` with `None` variant encoded as `u32::MAX`.
-///
-///
-///The last part of the [`RBForest`] is an array of `max_nodes` (see [`Header`] docs)
-///[`Nodes`](Node).
-///
-///[`from_slice()`](RBForest::from_slice) method checks the following invariants:
-/// * magic string is present
-/// * `KSIZE` and `VSIZE` matches corresponding fields in the [Header]
-/// * node pool contains exactly `max_nodes` [Nodes](Node)
 pub struct RBForest<'a, K, V, const KSIZE: usize, const VSIZE: usize>
 where
     K: Ord + BorshDeserialize + BorshSerialize,

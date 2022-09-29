@@ -1,17 +1,17 @@
 use bytemuck::{Pod, Zeroable};
 use core::fmt;
 
-const HEADER_MAGIC: [u8; 12] = *b"Slice_RBTree";
+pub const HEADER_MAGIC: [u8; 12] = *b"Slice_RBTree";
 
-/// [RBForest](super::RBForest) header struct
+/// [RBForest](crate::forest::RBForest) header struct
 #[repr(C)]
 #[derive(Pod, Clone, Copy, Zeroable)]
 pub struct Header {
     /// offset: 0 - Magic string, must be equal to [HEADER_MAGIC]
     magic: [u8; 12],
-    /// offset: 12 - big-endian encoded `u16`, must be equal to `KSIZE` parameter of [`RBForest`](super::RBForest)
+    /// offset: 12 - big-endian encoded `u16`, must be equal to `KSIZE` parameter of [`RBForest`](crate::forest::RBForest)
     k_size: [u8; 2],
-    /// offset: 14 - big-endian encoded `u16`, must be equal to `VSIZE` parameter of [`RBForest`](super::RBForest)
+    /// offset: 14 - big-endian encoded `u16`, must be equal to `VSIZE` parameter of [`RBForest`](crate::forest::RBForest)
     v_size: [u8; 2],
     /// offset: 16 - big-endian encoded `u32`, must be equal to the node pool size
     max_nodes: [u8; 4],

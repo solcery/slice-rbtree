@@ -44,7 +44,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub mod forest;
 pub mod tree;
 
-/// Possible errors for [`RBTree`] and [`RBForest`]
+/// Possible errors for [`RBTree`](tree::RBTree) and [`RBForest`](forest::RBForest)
 #[derive(Debug, PartialEq, Eq, Copy, Clone, BorshDeserialize, BorshSerialize)]
 pub enum Error {
     /// Failed to serialize key to key buffer, maybe it is too big?
