@@ -6,6 +6,7 @@ edition = "2021"
 readme = "README.md"
 keywords = ["collection", "tree", "solana"]
 categories = ["data-structures", "embedded", "no-std"]
+license = "Apache-2.0"
 
 [dependencies]
 borsh = "0.9.1"
