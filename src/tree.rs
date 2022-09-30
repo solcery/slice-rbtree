@@ -68,7 +68,7 @@ pub struct TreeParams {
 /// Returns the required size of the slice
 #[must_use]
 #[inline]
-pub fn tree_size(params: TreeParams, max_nodes: usize) -> usize {
+pub const fn tree_size(params: TreeParams, max_nodes: usize) -> usize {
     forest_size(
         ForestParams {
             k_size: params.k_size,

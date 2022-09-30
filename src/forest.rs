@@ -97,7 +97,7 @@ pub struct ForestParams {
 /// Returns the required size of the slice
 #[must_use]
 #[inline]
-pub fn forest_size(params: ForestParams, max_nodes: usize) -> usize {
+pub const fn forest_size(params: ForestParams, max_nodes: usize) -> usize {
     mem::size_of::<Header>()
         + (mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size) * max_nodes
         + 4 * params.max_roots
