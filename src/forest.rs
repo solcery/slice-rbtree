@@ -105,7 +105,9 @@ pub const fn forest_size(params: ForestParams, max_nodes: usize) -> usize {
 
 /// Initializes [`RBForest`] in the given slice without returning it
 ///
-/// This function can be used than you don't know buffer sizes at compile time.
+/// This function can be used then you don't know buffer sizes at compile time.
+/// Computationally it is identical to [`init_slice`](RBForest::init_slice), but without const
+/// generics
 pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> {
     if slice.len() <= mem::size_of::<Header>() {
         return Err(Error::TooSmall);
@@ -192,6 +194,9 @@ where
     V: BorshDeserialize + BorshSerialize,
 {
     /// Initializes [`RBForest`] in a given slice
+    ///
+    /// This function runs in `O(n)` where `n` is a number of nodes, however it is very fast,
+    /// because it have to write only 4 bytes per node
     pub fn init_slice(slice: &'a mut [u8], max_roots: usize) -> Result<Self, Error> {
         if slice.len() <= mem::size_of::<Header>() {
             return Err(Error::TooSmall);

@@ -1,4 +1,7 @@
 # slice-rbtree
+[![codecov](https://codecov.io/gh/solcery/slice-rbtree/branch/dev/graph/badge.svg?token=FCL7OIFKCE)](https://codecov.io/gh/solcery/slice-rbtree)
+[![Unit Tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
+
 A `#[no_std]` [Red-Black tree][2], fully packed in a single slice of bytes
 Originally developed for storing data in [Solana][0] [Accounts][1], this crate allows you to
 access tree nodes without deserializing the whole tree. It is useful when you have a huge
@@ -7,7 +10,7 @@ tree in raw memory, but want to interact only with a few values at a time.
 There are two core type in this crate: `RBTree` and `RBForest`
 
 ## `RBTree`
-As name suggests, it is a [Red-Black tree][2], contained in the slice of bytes.
+As name suggests, it is a [Red-Black tree][2], contained in the slice of bytes ([borsh](https://github.com/near/borsh-rs) is used for (de)serialization).
 The API is similar to [BTreeMap][3] with a few exceptions, such as [Entry API][4], but it will be added in the future releases.
 ```rust
 use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
