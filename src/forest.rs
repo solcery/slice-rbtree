@@ -10,8 +10,6 @@
 //!
 //!```
 //! use slice_rbtree::forest::{forest_size, RBForest, ForestParams};
-//! // RBTree requires input slice to have a proper size
-//! // Each node in the `RBTree` has a fixed size known at compile time, so to estimate this size `KSIZE` and `VSIZE` parameters should passed to forest_size
 //! let size = forest_size(ForestParams {k_size: 50, v_size: 50, max_roots: 2}, 10);
 //! let mut buffer = vec![0; size];
 //! // `String` type has variable length, but we have to chose some fixed maximum length (50 bytes for both key and value)

@@ -1,3 +1,4 @@
+#![doc = include_str!("../README.md")]
 //! A `#[no_std]` [Red-Black tree](https://en.wikipedia.org/wiki/Red%E2%80%93black_tree), fully packed in a single slice of bytes
 //!
 //! Originally developed for storing data in [Solana][0] [Accounts][1], this crate allows you to
