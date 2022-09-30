@@ -15,7 +15,8 @@ The API is similar to [BTreeMap][3] with a few exceptions, such as [Entry API][4
 ```rust
 use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
 // RBTree requires input slice to have a proper size
-// Each node in the `RBTree` has a fixed size known at compile time, so to estimate this size `KSIZE` and `VSIZE` parameters should be passed to forest_size
+// Each node in the `RBTree` has a fixed size known at compile time,
+// so to estimate this size `KSIZE` and `VSIZE` parameters should be passed to tree_size
 let size = tree_size(
     TreeParams {
         k_size: 50,
@@ -23,7 +24,9 @@ let size = tree_size(
     },
     10,
 );
+
 let mut buffer = vec![0; size];
+
 let mut movie_reviews: RBTree<String, String, 50, 50> =
     RBTree::init_slice(&mut buffer).unwrap();
 

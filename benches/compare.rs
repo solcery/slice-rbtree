@@ -79,7 +79,7 @@ fn access_one_value(c: &mut Criterion) {
                 >::from_slice(black_box(map_buffer.as_mut_slice()))
                 .unwrap()
             };
-            b.iter(|| assert_eq!(map.get(&3), Some(expected_value.clone())))
+            b.iter(|| assert_eq!(map.get(&3), Some(expected_value)))
         });
     }
     group.finish();
