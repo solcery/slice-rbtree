@@ -2,11 +2,15 @@
 name = "slice-rbtree"
 version = "0.0.0"
 repository = "https://github.com/solcery/on-chain/"
+description = "A slice-based Red-black tree"
 edition = "2021"
 readme = "README.md"
 keywords = ["collection", "tree", "solana"]
 categories = ["data-structures", "embedded", "no-std"]
 license = "Apache-2.0"
+exclude = [
+    "assets/*",
+]
 
 [dependencies]
 borsh = "0.9.1"

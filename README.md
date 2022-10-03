@@ -144,3 +144,35 @@ assert!(reviews.is_empty(1));
 [2]: https://en.wikipedia.org/wiki/Red%E2%80%93black_tree
 [3]: https://doc.rust-lang.org/stable/std/collections/btree_map/struct.BTreeMap.html
 [4]: https://doc.rust-lang.org/stable/std/collections/struct.BTreeMap.html#method.entry
+# Benchmarks
+The main idea behind `slice-rbtree` is that you don't have to deserialize the whole map if you want to interact only with a small subset of it.
+
+To compare [`RBTree`](tree::RBTree) with [BTreeMap][3] we've measured:
+1. "Deserialization" -- time to get the map from the slice of bytes
+2. "Access one value" -- time get a value from the existing map
+3. "Add one value" -- time to insert a new value in the map
+
+|                                                 |  `BTreeMap`  |`RBTree`|
+|                       -                         |     --       |   --   |
+|           Deserialize 10 elements               |   **472 ns**   | 13 ns  |
+|          Deserialize 1280 elements              | **109'000 ns** | 13 ns  |
+| Access one element in the tree of 10 elements   |    10 ns     | 23 ns  |
+| Access one element in the tree of 1280 elements |    19 ns     | 33 ns  |
+| Insert one element in the tree of 10 elements   |    78 ns     | 147 ns |
+| Insert one element in the tree of 1280 elements |    106 ns    | 239 ns |
+
+![Deserialization](./assets/deserialization.svg)
+![Insert](./assets/insert.svg)
+![Access](./assets/access.svg)
+
+As you can see, [`RBTree`](tree::RBTree) is 2-3 times slower than [BTreeMap][3] in access/insert opertions, but can be opened very fast.
+
+Type used in the benchmark:
+```rust
+struct MyType {
+    array: [u8; 10],
+    float: f64,
+    num: u64,
+    num2: u32,
+}
+```
