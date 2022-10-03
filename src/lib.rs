@@ -16,6 +16,9 @@ pub enum Error {
     KeySerializationError,
     /// no free nodes left in the slice
     NoNodesLeft,
+    /// the provided slice is too big for the map: the map internally uses `u32` indices, so there
+    /// can't be more than `u32::MAX` nodes
+    TooBig,
     /// the provided slice is too small for the map
     TooSmall,
     /// failed to serialize value to value buffer, maybe it is too big?

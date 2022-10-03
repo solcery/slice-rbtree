@@ -125,6 +125,12 @@ pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> 
         return Err(Error::WrongSliceSize);
     }
 
+    if nodes.len() / (mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size)
+        > u32::MAX as usize
+    {
+        return Err(Error::TooBig);
+    }
+
     let header: &mut [[u8; mem::size_of::<Header>()]] = cast_slice_mut(header);
     let header: &mut Header = cast_mut(&mut header[0]);
     let roots: &mut [[u8; 4]] = cast_slice_mut(roots);
@@ -219,6 +225,10 @@ where
         let header: &mut Header = cast_mut(&mut header[0]);
         let roots: &mut [[u8; 4]] = cast_slice_mut(roots);
 
+        if nodes.len() > u32::MAX as usize {
+            return Err(Error::TooBig);
+        }
+
         unsafe {
             // Allocator initialization
             nodes[0].set_parent(None);
@@ -281,6 +291,10 @@ where
         }
 
         let nodes: &mut [Node<KSIZE, VSIZE>] = cast_slice_mut(nodes);
+
+        if nodes.len() > u32::MAX as usize {
+            return Err(Error::TooBig);
+        }
 
         if header.k_size() as usize != KSIZE {
             return Err(Error::WrongKeySize);

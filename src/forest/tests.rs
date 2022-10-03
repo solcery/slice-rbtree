@@ -517,6 +517,14 @@ fn deserialization() {
     }
 }
 
+#[test]
+#[ignore]
+fn too_big() {
+    let mut vec = create_vec(4, 0, u32::MAX as usize + 1, 1);
+    let tree = RBForest::<u32, (), 4, 0>::init_slice(vec.as_mut_slice(), 1).unwrap_err();
+    assert_eq!(tree, Error::TooBig);
+}
+
 pub fn create_vec(k_size: usize, v_size: usize, num_entries: usize, max_roots: usize) -> Vec<u8> {
     let len = mem::size_of::<Header>()
         + 4 * max_roots
