@@ -3,7 +3,7 @@ use core::fmt;
 
 pub const HEADER_MAGIC: [u8; 12] = *b"Slice_RBTree";
 
-/// [RBForest](crate::forest::RBForest) header struct
+/// [`RBForest`](crate::forest::RBForest) header struct
 #[repr(C)]
 #[derive(Pod, Clone, Copy, Zeroable)]
 pub struct Header {

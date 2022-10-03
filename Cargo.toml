@@ -1,7 +1,7 @@
 [package]
 name = "slice-rbtree"
-version = "0.0.0"
-repository = "https://github.com/solcery/on-chain/"
+version = "0.1.0-alpha"
+repository = "https://github.com/solcery/slice-rbtree/"
 description = "A slice-based Red-black tree"
 edition = "2021"
 readme = "README.md"
