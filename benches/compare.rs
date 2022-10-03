@@ -148,8 +148,8 @@ fn deserialization(c: &mut Criterion) {
     group.finish();
 }
 
-fn add_one_value(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Add one value");
+fn insert_one_value(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Insert one value");
 
     let mut map_buffer = vec![
         0u8;
@@ -212,5 +212,5 @@ fn add_one_value(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, deserialization, access_one_value, add_one_value);
+criterion_group!(benches, deserialization, access_one_value, insert_one_value);
 criterion_main!(benches);

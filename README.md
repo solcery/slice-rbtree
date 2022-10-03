@@ -161,11 +161,11 @@ To compare [`RBTree`](tree::RBTree) with [BTreeMap][3] we've measured:
 | Insert one element in the tree of 10 elements   |    78 ns     | 147 ns |
 | Insert one element in the tree of 1280 elements |    106 ns    | 239 ns |
 
-![Deserialization](./assets/deserialization.svg)
-![Insert](./assets/insert.svg)
-![Access](./assets/access.svg)
+As you can see, [`RBTree`](tree::RBTree) is 2-3 times slower than [BTreeMap][3] in access/insert operations, but can be opened very fast.
 
-As you can see, [`RBTree`](tree::RBTree) is 2-3 times slower than [BTreeMap][3] in access/insert opertions, but can be opened very fast.
+![Deserialization](https://raw.githubusercontent.com/solcery/slice-rbtree/feature/docs/assets/deserialization.svg)
+![Insert](https://raw.githubusercontent.com/solcery/slice-rbtree/feature/docs/assets/insert.svg)
+![Access](https://raw.githubusercontent.com/solcery/slice-rbtree/feature/docs/assets/access.svg)
 
 Type used in the benchmark:
 ```rust
