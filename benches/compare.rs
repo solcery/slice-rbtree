@@ -1,6 +1,6 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
-use slice_rbtree::{tree_size, RBTree};
+use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
 use std::collections::BTreeMap;
 
 const SIZES: [u32; 8] = [10, 20, 40, 80, 160, 320, 640, 1280];
@@ -32,8 +32,10 @@ fn access_one_value(c: &mut Criterion) {
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];
@@ -77,7 +79,7 @@ fn access_one_value(c: &mut Criterion) {
                 >::from_slice(black_box(map_buffer.as_mut_slice()))
                 .unwrap()
             };
-            b.iter(|| assert_eq!(map.get(&3), Some(expected_value.clone())))
+            b.iter(|| assert_eq!(map.get(&3), Some(expected_value)))
         });
     }
     group.finish();
@@ -89,8 +91,10 @@ fn deserialization(c: &mut Criterion) {
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];
@@ -144,14 +148,16 @@ fn deserialization(c: &mut Criterion) {
     group.finish();
 }
 
-fn add_one_value(c: &mut Criterion) {
-    let mut group = c.benchmark_group("Add one value");
+fn insert_one_value(c: &mut Criterion) {
+    let mut group = c.benchmark_group("Insert one value");
 
     let mut map_buffer = vec![
         0u8;
         tree_size(
-            std::mem::size_of::<u32>(),
-            std::mem::size_of::<MyType>(),
+            TreeParams {
+                k_size: std::mem::size_of::<u32>(),
+                v_size: std::mem::size_of::<MyType>(),
+            },
             2000
         )
     ];
@@ -206,5 +212,5 @@ fn add_one_value(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, deserialization, access_one_value, add_one_value);
+criterion_group!(benches, deserialization, access_one_value, insert_one_value);
 criterion_main!(benches);

@@ -311,21 +311,68 @@ fn pairs() {
     let mut tree = RBTree::<u8, u8, 1, 1>::init_slice(vec.as_mut_slice()).unwrap();
     assert!(tree.is_empty());
 
-    for key in &forest_helpers::INSERT_KEYS {
-        assert_eq!(tree.insert(*key, *key), Ok(None));
+    for (id, key) in forest_helpers::INSERT_KEYS.iter().enumerate() {
+        assert_eq!(tree.insert(*key, id as u8), Ok(None));
     }
 
     let tree_iter = tree.pairs();
 
-    let tree_data: Vec<(u8, u8)> = tree_iter.collect();
+    let mut expected_vec = forest_helpers::INSERT_KEYS
+        .iter()
+        .enumerate()
+        .collect::<Vec<_>>();
 
-    assert_eq!(tree_data.len(), forest_helpers::INSERT_KEYS.len());
+    expected_vec.sort_by_key(|(_, key)| *key);
 
-    let mut prev_elem = (0, 0);
+    let expected_iter = expected_vec.iter().map(|(id, key)| (**key, *id as u8));
 
-    for elem in tree_data {
-        assert!(prev_elem <= elem);
-        prev_elem = elem;
+    for (elem, expected_elem) in tree_iter.zip(expected_iter) {
+        assert_eq!(elem, expected_elem);
+    }
+}
+
+#[test]
+fn values() {
+    let mut vec = create_vec(1, 1, 256);
+
+    let mut tree = RBTree::<u8, u8, 1, 1>::init_slice(vec.as_mut_slice()).unwrap();
+    assert!(tree.is_empty());
+
+    for (id, key) in forest_helpers::INSERT_KEYS.iter().enumerate() {
+        assert_eq!(tree.insert(*key, id as u8), Ok(None));
+    }
+
+    let tree_iter = tree.values();
+
+    let mut expected_vec = forest_helpers::INSERT_KEYS
+        .iter()
+        .enumerate()
+        .collect::<Vec<_>>();
+
+    expected_vec.sort_by_key(|(_, key)| *key);
+
+    let expected_iter = expected_vec.iter().map(|(id, _)| *id as u8);
+
+    for (elem, expected_elem) in tree_iter.zip(expected_iter) {
+        assert_eq!(elem, expected_elem);
+    }
+}
+
+#[test]
+fn keys() {
+    let mut vec = create_vec(1, 1, 256);
+
+    let mut tree = RBTree::<u8, u8, 1, 1>::init_slice(vec.as_mut_slice()).unwrap();
+    assert!(tree.is_empty());
+
+    for (id, key) in forest_helpers::INSERT_KEYS.iter().enumerate() {
+        assert_eq!(tree.insert(id as u8, *key), Ok(None));
+    }
+
+    let mut tree_iter = tree.keys();
+
+    for key in 0..forest_helpers::INSERT_KEYS.len() {
+        assert_eq!(tree_iter.next(), Some(key as u8));
     }
 }
 

@@ -1,11 +1,60 @@
+//! A slice-based Red-Black tree
+//!
+//! Let's assume you want to create a tree holding up to 100 pairs of `u8 <-> f64`:
+//! ```
+//! use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
+//! use std::mem::size_of;
+//!
+//! // RBTree requires input slice to have a proper size
+//! let size = tree_size(
+//!     TreeParams {
+//!         k_size: size_of::<u8>(),
+//!         v_size: size_of::<f64>(),
+//!     },
+//!     100,
+//! );
+//!
+//! let mut buffer = vec![0; size];
+//!
+//! let mut tree: RBTree<u8, f64, 1, 8> = RBTree::init_slice(&mut buffer).unwrap();
+//!
+//! // Insert some values
+//! tree.insert(15, 1.245).unwrap();
+//! tree.insert(17, 5.5).unwrap();
+//! tree.insert(19, 6.5).unwrap();
+//!
+//! // This type does not implement `Drop` trait - all the data is immediately serialized in the
+//! // slice, so this is actually a no-op
+//! drop(tree);
+//!
+//! let mut new_tree: RBTree<u8, f64, 1, 8> = unsafe { RBTree::from_slice(&mut buffer).unwrap() };
+//! assert_eq!(new_tree.get(&15), Some(1.245));
+//!
+//! // Create iterator of key-value pairs and collect in a `Vec`
+//! let pairs:Vec<_> = new_tree.pairs().collect();
+//! assert_eq!(pairs[0], (15, 1.245));
+//! assert_eq!(pairs[1], (17, 5.5));
+//! assert_eq!(pairs[2], (19, 6.5));
+//!
+//! // There are 3 ways to remove a value from the tree:
+//! // 1. remove() will deserialize the value to be removed
+//! assert_eq!(new_tree.remove(&17), Some(5.5));
+//! // 2. remove_entry() will deserialize both the key and the value
+//! assert_eq!(new_tree.remove_entry(&15), Some((15,1.245)));
+//! // 2. delete() will not deserialize anything, will return `true` if the value was present
+//! assert_eq!(new_tree.delete(&19), true);
+//! ```
+//!
+//! # Internal structure
+//! Internally, [`RBTree`] is just a wrapper around [`RBForest`](super::forest::RBForest) with `max_roots`
+//! equal to `1`. See [`RBForest`](super::forest::RBForest) docs for description of the internals.
 use borsh::{BorshDeserialize, BorshSerialize};
 use core::borrow::Borrow;
 use core::cmp::Ord;
 use core::fmt;
 
-use super::forest::{
-    forest_size, init_forest, ForestParams, KeysIterator, PairsIterator, RBForest, ValuesIterator,
-};
+pub use super::forest::iterators::{KeysIterator, PairsIterator, ValuesIterator};
+use super::forest::{forest_size, init_forest, ForestParams, RBForest};
 use super::Error;
 
 /// Parameters required to calculate [`RBTree`] size
@@ -19,7 +68,7 @@ pub struct TreeParams {
 /// Returns the required size of the slice
 #[must_use]
 #[inline]
-pub fn tree_size(params: TreeParams, max_nodes: usize) -> usize {
+pub const fn tree_size(params: TreeParams, max_nodes: usize) -> usize {
     forest_size(
         ForestParams {
             k_size: params.k_size,
@@ -47,54 +96,7 @@ pub fn init_tree(params: TreeParams, slice: &mut [u8]) -> Result<(), Error> {
 
 /// A slice-based Red-Black tree
 ///
-/// Let's assume you want to create a tree holding up to 100 pairs of `u8 <-> f64`:
-/// ```
-/// use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
-/// use std::mem::size_of;
-///
-/// // RBTree requires input slice to have a proper size
-/// let size = tree_size(
-///     TreeParams {
-///         k_size: size_of::<u8>(),
-///         v_size: size_of::<f64>(),
-///     },
-///     100,
-/// );
-///
-/// let mut buffer = vec![0; size];
-///
-/// let mut tree: RBTree<u8, f64, 1, 8> = RBTree::init_slice(&mut buffer).unwrap();
-///
-/// // Insert some values
-/// tree.insert(15, 1.245).unwrap();
-/// tree.insert(17, 5.5).unwrap();
-/// tree.insert(19, 6.5).unwrap();
-///
-/// // This type does not implement `Drop` trait - all the data is immediately serialized in the
-/// // slice, so this is actually a no-op
-/// drop(tree);
-///
-/// let mut new_tree: RBTree<u8, f64, 1, 8> = unsafe { RBTree::from_slice(&mut buffer).unwrap() };
-/// assert_eq!(new_tree.get(&15), Some(1.245));
-///
-/// // Create iterator of key-value pairs and collect in a `Vec`
-/// let pairs:Vec<_> = new_tree.pairs().collect();
-/// assert_eq!(pairs[0], (15, 1.245));
-/// assert_eq!(pairs[1], (17, 5.5));
-/// assert_eq!(pairs[2], (19, 6.5));
-///
-/// // There are 3 ways to remove a value from the tree:
-/// // 1. remove() will deserialize the value to be removed
-/// assert_eq!(new_tree.remove(&17), Some(5.5));
-/// // 2. remove_entry() will deserialize both the key and the value
-/// assert_eq!(new_tree.remove_entry(&15), Some((15,1.245)));
-/// // 2. delete() will not deserialize anything, will return `true` if the value was present
-/// assert_eq!(new_tree.delete(&19), true);
-/// ```
-///
-/// # Internal structure
-/// Internally, [`RBTree`] is just a wrapper around [`RBForest`](super::RBForest) with `max_roots`
-/// equal to `1`. See [`RBForest`](super::RBForest) docs for description of the internals.
+/// See [module](super::tree) level documentation for more info.
 pub struct RBTree<'a, K, V, const KSIZE: usize, const VSIZE: usize>(
     RBForest<'a, K, V, KSIZE, VSIZE>,
 )

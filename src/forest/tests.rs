@@ -603,7 +603,7 @@ mod init_forest {
             v_size: 4,
             max_roots: 1,
         };
-        
+
         init_forest(params, vec.as_mut_slice()).unwrap();
         let mut tree =
             unsafe { RBForest::<i32, u32, 4, 4>::from_slice(vec.as_mut_slice()).unwrap() };
