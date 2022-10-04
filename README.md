@@ -3,6 +3,7 @@
 [![Unit Tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
 
 A `#[no_std]` [Red-Black tree][2], fully packed in a single slice of bytes
+
 Originally developed for storing data in [Solana][0] [Accounts][1], this crate allows you to
 access tree nodes without deserializing the whole tree. It is useful when you have a huge
 tree in raw memory, but want to interact only with a few values at a time.
