@@ -273,5 +273,18 @@ where
     }
 }
 
+impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> Extend<(K, V)>
+    for RBTree<'a, K, V, KSIZE, VSIZE>
+where
+    K: Ord + BorshDeserialize + BorshSerialize,
+    V: BorshDeserialize + BorshSerialize,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for elem in iter {
+            self.insert(elem.0, elem.1).unwrap();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests;
