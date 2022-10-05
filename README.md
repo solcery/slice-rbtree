@@ -1,6 +1,8 @@
 # slice-rbtree
 [![codecov](https://codecov.io/gh/solcery/slice-rbtree/branch/dev/graph/badge.svg?token=FCL7OIFKCE)](https://codecov.io/gh/solcery/slice-rbtree)
-[![Unit Tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
+[![tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
+[![crate](https://img.shields.io/crates/v/slice-rbtree.svg)](https://crates.io/crates/slice-rbtree)
+[![documentation](https://docs.rs/slice-rbtree/badge.svg)](https://docs.rs/slice-rbtree)
 
 A `#[no_std]` [Red-Black tree][2], fully packed in a single slice of bytes
 
