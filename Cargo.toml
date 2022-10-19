@@ -1,6 +1,6 @@
 [package]
 name = "slice-rbtree"
-version = "0.1.0-alpha"
+version = "0.1.0-alpha.1"
 repository = "https://github.com/solcery/slice-rbtree/"
 description = "A slice-based Red-black tree"
 edition = "2021"
@@ -13,8 +13,8 @@ exclude = [
 ]
 
 [dependencies]
-borsh = "0.9.1"
-bytemuck = {version = "1.7.2", features = ['derive','min_const_generics']}
+borsh = { version = "0.9.1", default_features = false, features = ["const-generics"] }
+bytemuck = { version = "1.7.2", features = ['derive','min_const_generics'] }
 
 [dev-dependencies]
 criterion = "0.3"
