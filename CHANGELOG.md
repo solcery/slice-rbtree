@@ -8,4 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Implemented `Extend` trait for `RBTree`
 
+# [0.0.1-alpha.1]
+## Fixed
+- Removed hidden dependency on `std` in `borsh`
+# [0.0.1-alpha]
+Initial release
+
+
 [Unreleased]: https://github.com/solcery/slice-rbtree/compare/HEAD...dev
+[0.0.1-alpha.1]: https://github.com/solcery/slice-rbtree/compare/v0.0.1-alpha...v0.0.1-alpha.1
+[0.0.1-alpha]: https://github.com/solcery/slice-rbtree/releases/tag/v0.0.1-alpha
