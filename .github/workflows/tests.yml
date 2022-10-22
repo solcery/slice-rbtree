@@ -29,29 +29,3 @@ jobs:
 
       - name: Run tests
         run: cargo test --no-fail-fast --verbose
-  onchain:
-    name: On-chain Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-
-      - name: Install minimal stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-
-      - name: Install Solana SDK
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/stable/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
-          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo-build-bpf --version
-        
-      - name: Build BPF
-        run: cargo test-bpf --no-run --verbose
-        
-      - name: Test BPF
-        run: cargo test-bpf --verbose
