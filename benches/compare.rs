@@ -69,7 +69,6 @@ fn access_one_value(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             let map = unsafe {
                 RBTree::<
                     u32,
@@ -130,7 +129,6 @@ fn deserialization(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             b.iter(|| {
                 let map = unsafe {
                     RBTree::<
@@ -193,7 +191,6 @@ fn insert_one_value(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             let mut map = unsafe {
                 RBTree::<
                     u32,

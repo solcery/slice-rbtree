@@ -135,7 +135,7 @@ where
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
 
     /// Returns the number of free nodes
