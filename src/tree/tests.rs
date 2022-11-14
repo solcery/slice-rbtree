@@ -8,8 +8,8 @@ where
     K: Eq + Ord + BorshDeserialize + BorshSerialize,
     V: Eq + BorshDeserialize + BorshSerialize,
 {
-    unsafe fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
-        unsafe {
+    fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
+        {
             self.0.set_node(id, node);
         }
     }
@@ -72,7 +72,7 @@ fn swap_nodes() {
     //red-> swap2 node1 <-red
     //      /
     //  node2            <-black
-    unsafe {
+    {
         let parent = Node::from_raw_parts(
             // 0
             u32::to_be_bytes(1),
@@ -142,7 +142,7 @@ fn swap_nodes() {
     //red-> swap1 node1 <-red
     //      /
     //  node2            <-black
-    unsafe {
+    {
         let parent = Node::from_raw_parts(
             // 0
             u32::to_be_bytes(1),

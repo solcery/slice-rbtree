@@ -40,12 +40,12 @@ where
         }
     }
 
-    pub unsafe fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
+    pub fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
         self.nodes[id] = *node;
     }
 
-    pub unsafe fn set_head(&mut self, head: Option<u32>) {
-        unsafe {
+    pub fn set_head(&mut self, head: Option<u32>) {
+        {
             self.header.set_head(head);
         }
     }
@@ -193,7 +193,7 @@ fn swap_nodes() {
     //red-> swap2 node1 <-red
     //      /
     //  node2            <-black
-    unsafe {
+    {
         let parent = Node::from_raw_parts(
             // 0
             u32::to_be_bytes(1),
@@ -264,7 +264,7 @@ fn swap_nodes() {
     //red-> swap1 node1 <-red
     //      /
     //  node2            <-black
-    unsafe {
+    {
         let parent = Node::from_raw_parts(
             // 0
             u32::to_be_bytes(1),

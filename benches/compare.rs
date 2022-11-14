@@ -45,7 +45,7 @@ fn access_one_value(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
@@ -102,7 +102,7 @@ fn deserialization(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
@@ -165,7 +165,7 @@ fn insert_one_value(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
