@@ -6,11 +6,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 ### Added
-- Implemented `Extend` trait for `RBTree`
-- Implemented `FusedIterator` trait for iterators over `RBTree` and `RBForest`.
+- `Extend` trait for `RBTree`
+- `FusedIterator` trait for iterators over `RBTree` and `RBForest`
+- Invariant checkers in tests for better error-catching
+
 ### Changed
 - Removed internal use of `unsafe` keyword, as it actually can not cause neither soundness problems nor memory safety bugs.
 `from_slice()` methods are still marked as unsafe because the caller must ensure, that the slice was properly initialized
+- Splitted `Debug` implementation into two variants: `cfg(test)` with all internal information about tree structure and `cfg(not(test))` - formatting just as in ordinary map
 
 ## [0.1.0-alpha.1] - 2022-10-19
 ### Fixed

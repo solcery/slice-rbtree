@@ -1179,10 +1179,20 @@ where
     K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
     V: BorshDeserialize + BorshSerialize + fmt::Debug,
 {
+    #[cfg(not(test))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let max_roots = self.max_roots();
         f.debug_map()
             .entries((0..max_roots).map(|i| (i, self.pairs(i))))
+            .finish()
+    }
+
+    #[cfg(test)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("RBForest")
+            .field("header", self.header)
+            .field("roots", &self.roots.iter().map(|x|u32::from_be_bytes(*x)))
+            .field("nodes", &self.nodes)
             .finish()
     }
 }
