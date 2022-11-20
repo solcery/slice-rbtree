@@ -96,23 +96,45 @@ where
         }
     }
 
-    //FIXME: rewrite this method so that it returns bool
-    pub fn child_parent_link_test(&self, tree_id: usize) {
+    pub fn is_child_parent_links_consistent(&self, tree_id: usize) -> bool {
         if let Some(id) = self.root(tree_id) {
-            assert_eq!(self.nodes[id as usize].parent(), None);
-            self.node_link_test(id as usize);
+            if self.nodes[id as usize].parent() == None {
+                self.is_node_links_consistent(id as usize)
+            } else {
+                false
+            }
+        } else {
+            true
         }
     }
 
-    fn node_link_test(&self, id: usize) {
-        if let Some(left_id) = self.nodes[id].left() {
-            assert_eq!(self.nodes[left_id as usize].parent(), Some(id as u32));
-            self.node_link_test(left_id as usize);
-        }
-
-        if let Some(right_id) = self.nodes[id].right() {
-            assert_eq!(self.nodes[right_id as usize].parent(), Some(id as u32));
-            self.node_link_test(right_id as usize);
+    fn is_node_links_consistent(&self, id: usize) -> bool {
+        match (self.nodes[id].left(), self.nodes[id].right()) {
+            (None, None) => true,
+            (Some(left_id), None) => {
+                if self.nodes[left_id as usize].parent() == Some(id as u32) {
+                    self.is_node_links_consistent(left_id as usize)
+                } else {
+                    false
+                }
+            }
+            (None, Some(right_id)) => {
+                if self.nodes[right_id as usize].parent() == Some(id as u32) {
+                    self.is_node_links_consistent(right_id as usize)
+                } else {
+                    false
+                }
+            }
+            (Some(left_id), Some(right_id)) => {
+                let left_equality = self.nodes[left_id as usize].parent() == Some(id as u32);
+                let right_equality = self.nodes[right_id as usize].parent() == Some(id as u32);
+                if left_equality & right_equality {
+                    self.is_node_links_consistent(right_id as usize)
+                        & self.is_node_links_consistent(left_id as usize)
+                } else {
+                    false
+                }
+            }
         }
     }
 

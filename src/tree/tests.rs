@@ -272,7 +272,7 @@ fn delete() {
         assert_eq!(tree.get(key), Some(*key));
     }
 
-    tree.child_parent_link_test();
+    assert!(tree.is_child_parent_links_consistent());
 
     let mut len = forest_helpers::INSERT_KEYS.len();
     assert_eq!(tree.len(), len);
@@ -453,7 +453,7 @@ mod fuzz_cases {
             tree.apply_method(method);
             assert!(tree.is_balanced());
             assert!(tree.no_double_red());
-            tree.child_parent_link_test();
+            assert!(tree.is_child_parent_links_consistent());
         }
         // failing part
         dbg!(&tree);

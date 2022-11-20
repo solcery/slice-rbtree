@@ -310,7 +310,7 @@ fn delete() {
         assert_eq!(tree.get(0, key), Some(*key));
     }
 
-    tree.child_parent_link_test(0);
+    assert!(tree.is_child_parent_links_consistent(0));
 
     let mut len = INSERT_KEYS.len();
     assert_eq!(tree.len(0), len);
@@ -432,7 +432,7 @@ pub fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
     assert!(tree.no_double_red(tree_id));
     assert!(tree.contains_key(tree_id, val));
     assert!(tree.remove_entry(tree_id, val).is_some());
-    tree.child_parent_link_test(tree_id);
+    assert!(tree.is_child_parent_links_consistent(tree_id));
     assert_eq!(tree.get_key_index(tree_id, val), None);
     assert!(tree.is_balanced(tree_id));
     assert!(tree.no_double_red(tree_id));

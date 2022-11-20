@@ -27,6 +27,6 @@ fuzz_target!(|methods: Vec<RBTreeMethod<Key, Value>>| {
         tree.apply_method(method);
         assert!(tree.is_balanced());
         assert!(tree.no_double_red());
-        tree.child_parent_link_test();
+        assert!(tree.is_child_parent_links_consistent());
     }
 });

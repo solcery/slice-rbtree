@@ -18,8 +18,8 @@ where
         self.0.struct_eq(0, &other.0, 0)
     }
 
-    pub fn child_parent_link_test(&self) {
-        self.0.child_parent_link_test(0)
+    pub fn is_child_parent_links_consistent(&self) -> bool {
+        self.0.is_child_parent_links_consistent(0)
     }
 
     #[must_use]
