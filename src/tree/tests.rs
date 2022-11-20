@@ -399,3 +399,136 @@ fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
 {
     forest_helpers::assert_rm(val, 0, &mut tree.0);
 }
+
+mod fuzz_cases {
+    use super::*;
+    use core::mem::size_of;
+    use RBTreeMethod::*;
+
+    // TODO: remove code dublication with fuzzer
+    #[derive(Debug)]
+    enum RBTreeMethod<K, V> {
+        Len,
+        Clear,
+        FreeNodesLeft,
+        ContainsKey(K),
+        GetEntry(K),
+        //Get,
+        Insert { key: K, value: V },
+        //IsEmpty,
+        Remove(K),
+        //RemoveEntry(K),
+        //Delete(K),
+        //FirstEntry,
+        //LastEntry,
+        //Pairs,
+        //Keys,
+        //Values,
+    }
+
+    #[test]
+    #[ignore]
+    fn case_1() {
+        let size: usize = 10;
+
+        type Key = u32;
+        type Value = [u64; 4];
+
+        const TREE_PARAMS: TreeParams = TreeParams {
+            k_size: size_of::<Key>(),
+            v_size: size_of::<Value>(),
+        };
+
+        let expected_size = tree_size(TREE_PARAMS, size);
+
+        let mut slice = vec![0; expected_size];
+
+        let mut tree: RBTree<Key, Value, { TREE_PARAMS.k_size }, { TREE_PARAMS.v_size }> =
+            RBTree::init_slice(&mut slice).unwrap();
+
+        let methods: Vec<RBTreeMethod<Key, Value>> = vec![
+            Remove(4294967295), //0
+            Insert {
+                key: 3671775962,
+                value: [15770140086514670298, 14342874, 0, 15770157678686371923],
+            }, //1
+            Insert {
+                key: 3671775962,
+                value: [
+                    16710579925594856154,
+                    16710579925595711463,
+                    6365934834201389031,
+                    16710579925595717464,
+                ],
+            }, //2
+            Insert {
+                key: 3890735079,
+                value: [
+                    15770157734754248679,
+                    240633509501658,
+                    0,
+                    17216961102781349888,
+                ],
+            }, //3
+            Insert {
+                key: 4008631002,
+                value: [
+                    15658734,
+                    16573246628723425280,
+                    18439962182505129959,
+                    15770157232650125311,
+                ],
+            }, //4
+            Remove(4294967295), //5
+            Remove(3890735079), //6
+            Remove(3890735079), //7
+            Remove(3504859111), //8
+            Remove(3890735079), //9
+            Insert {
+                key: 3671785434,
+                value: [
+                    42945478618,
+                    16710579925595711463,
+                    6365935208283757543,
+                    16710579925595711487,
+                ],
+            }, //10
+            Remove(3890735079), //11
+            Remove(3671775962), //12
+        ];
+
+        for (i, method) in methods.into_iter().enumerate().take(12) {
+            dbg!(i);
+            dbg!(&tree);
+            match method {
+                Len => {
+                    let _ = tree.len();
+                }
+                Clear => {
+                    let _ = tree.clear();
+                }
+                FreeNodesLeft => {
+                    let _ = tree.free_nodes_left();
+                }
+                Insert { key, value } => {
+                    let _ = tree.insert(key, value);
+                }
+                ContainsKey(key) => {
+                    let _ = tree.contains_key(&key);
+                }
+                GetEntry(key) => {
+                    let _ = tree.get_entry(&key);
+                }
+                Remove(key) => {
+                    let _ = tree.remove(&key);
+                }
+            }
+            assert!(tree.is_balanced());
+            assert!(tree.no_double_red());
+            tree.child_parent_link_test();
+        }
+        // failing part
+        dbg!(&tree);
+        tree.remove(&3671775962);
+    }
+}
