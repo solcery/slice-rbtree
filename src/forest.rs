@@ -1191,7 +1191,21 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("RBForest")
             .field("header", self.header)
-            .field("roots", &self.roots.iter().map(|x| u32::from_be_bytes(*x)))
+            .field(
+                "roots",
+                &self
+                    .roots
+                    .iter()
+                    .map(|x| {
+                        let num = u32::from_be_bytes(*x);
+                        if num == u32::MAX {
+                            None
+                        } else {
+                            Some(num)
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
             .field("nodes", &self.nodes)
             .finish()
     }

@@ -5,10 +5,10 @@ use slice_rbtree::tree::internal_checks::RBTreeMethod;
 use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
 use std::mem::size_of;
 
-const SIZE: usize = 1000;
+const SIZE: usize = 256;
 
-type Key = u32;
-type Value = [u64; 4];
+type Key = u8;
+type Value = u8;
 
 const TREE_PARAMS: TreeParams = TreeParams {
     k_size: size_of::<Key>(),

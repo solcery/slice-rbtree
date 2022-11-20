@@ -459,4 +459,53 @@ mod fuzz_cases {
         dbg!(&tree);
         tree.remove(&3671775962);
     }
+
+    #[test]
+    #[ignore]
+    fn case_2() {
+        let size: usize = 5;
+
+        type Key = u8;
+        type Value = u8;
+
+        const TREE_PARAMS: TreeParams = TreeParams {
+            k_size: size_of::<Key>(),
+            v_size: size_of::<Value>(),
+        };
+
+        let expected_size = tree_size(TREE_PARAMS, size);
+
+        let mut slice = vec![0; expected_size];
+
+        let mut tree: RBTree<Key, Value, { TREE_PARAMS.k_size }, { TREE_PARAMS.v_size }> =
+            RBTree::init_slice(&mut slice).unwrap();
+
+        let methods: Vec<RBTreeMethod<Key, Value>> = vec![
+            Insert { key: 0, value: 255 }, //0
+            Insert {
+                key: 203,
+                value: 203,
+            }, //1
+            Insert {
+                key: 109,
+                value: 109,
+            }, //2
+            RemoveEntry(109),              //3
+            Insert { key: 1, value: 218 }, //4
+        ];
+
+        for method in methods.into_iter().take(4) {
+            tree.apply_method(method);
+            assert!(tree.is_balanced());
+            assert!(tree.no_double_red());
+            assert!(tree.is_child_parent_links_consistent());
+        }
+
+        dbg!(&tree);
+        tree.insert(1, 218);
+        dbg!(&tree);
+        assert!(tree.is_balanced());
+        assert!(tree.no_double_red());
+        assert!(tree.is_child_parent_links_consistent());
+    }
 }
