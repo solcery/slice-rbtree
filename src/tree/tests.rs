@@ -3,36 +3,6 @@ use crate::forest::{tests as forest_helpers, Node};
 use core::fmt::Debug;
 use pretty_assertions::assert_eq;
 
-impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> RBTree<'a, K, V, KSIZE, VSIZE>
-where
-    K: Eq + Ord + BorshDeserialize + BorshSerialize,
-    V: Eq + BorshDeserialize + BorshSerialize,
-{
-    fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
-        {
-            self.0.set_node(id, node);
-        }
-    }
-
-    fn struct_eq(&self, other: &Self) -> bool {
-        self.0.struct_eq(0, &other.0, 0)
-    }
-
-    fn child_parent_link_test(&self) {
-        self.0.child_parent_link_test(0)
-    }
-
-    #[must_use]
-    pub fn is_balanced(&self) -> bool {
-        self.0.is_balanced(0)
-    }
-
-    #[must_use]
-    pub fn no_double_red(&self) -> bool {
-        self.0.no_double_red(0)
-    }
-}
-
 #[test]
 fn init() {
     let mut vec = create_vec(4, 4, 5);
@@ -402,29 +372,9 @@ fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
 
 mod fuzz_cases {
     use super::*;
+    use crate::tree::internal_checks::RBTreeMethod;
     use core::mem::size_of;
     use RBTreeMethod::*;
-
-    // TODO: remove code dublication with fuzzer
-    #[derive(Debug)]
-    enum RBTreeMethod<K, V> {
-        Len,
-        Clear,
-        FreeNodesLeft,
-        ContainsKey(K),
-        GetEntry(K),
-        //Get,
-        Insert { key: K, value: V },
-        //IsEmpty,
-        Remove(K),
-        //RemoveEntry(K),
-        //Delete(K),
-        //FirstEntry,
-        //LastEntry,
-        //Pairs,
-        //Keys,
-        //Values,
-    }
 
     #[test]
     #[ignore]
@@ -500,29 +450,7 @@ mod fuzz_cases {
         for (i, method) in methods.into_iter().enumerate().take(12) {
             dbg!(i);
             dbg!(&tree);
-            match method {
-                Len => {
-                    let _ = tree.len();
-                }
-                Clear => {
-                    let _ = tree.clear();
-                }
-                FreeNodesLeft => {
-                    let _ = tree.free_nodes_left();
-                }
-                Insert { key, value } => {
-                    let _ = tree.insert(key, value);
-                }
-                ContainsKey(key) => {
-                    let _ = tree.contains_key(&key);
-                }
-                GetEntry(key) => {
-                    let _ = tree.get_entry(&key);
-                }
-                Remove(key) => {
-                    let _ = tree.remove(&key);
-                }
-            }
+            tree.apply_method(method);
             assert!(tree.is_balanced());
             assert!(tree.no_double_red());
             tree.child_parent_link_test();

@@ -1199,3 +1199,6 @@ where
 
 #[cfg(test)]
 pub(super) mod tests;
+
+#[cfg(any(test, feature = "internal_checks"))]
+pub mod internal_checks;
