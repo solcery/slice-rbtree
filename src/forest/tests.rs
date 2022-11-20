@@ -96,6 +96,7 @@ where
         }
     }
 
+    //FIXME: rewrite this method so that it returns bool
     pub fn child_parent_link_test(&self, tree_id: usize) {
         if let Some(id) = self.root(tree_id) {
             assert_eq!(self.nodes[id as usize].parent(), None);
@@ -112,6 +113,56 @@ where
         if let Some(right_id) = self.nodes[id].right() {
             assert_eq!(self.nodes[right_id as usize].parent(), Some(id as u32));
             self.node_link_test(right_id as usize);
+        }
+    }
+
+    // One of the invariants of Red-Black tree is that red node must not have red child
+    // This function checks this invariant
+    #[must_use]
+    pub fn no_double_red(&self, tree_id: usize) -> bool {
+        if let Some(id) = self.root(tree_id) {
+            self.does_not_have_red_child(id as usize)
+        } else {
+            true
+        }
+    }
+
+    fn does_not_have_red_child(&self, node_id: usize) -> bool {
+        match (self.nodes[node_id].left(), self.nodes[node_id].right()) {
+            (None, None) => true,
+            (Some(id), None) => {
+                let id = id as usize;
+                let self_redness = self.nodes[node_id].is_red();
+                let child_redness = self.nodes[id].is_red();
+                if self_redness & child_redness {
+                    false
+                } else {
+                    self.does_not_have_red_child(id)
+                }
+            }
+            (None, Some(id)) => {
+                let id = id as usize;
+                let self_redness = self.nodes[node_id].is_red();
+                let child_redness = self.nodes[id].is_red();
+                if self_redness & child_redness {
+                    false
+                } else {
+                    self.does_not_have_red_child(id)
+                }
+            }
+            (Some(left_id), Some(right_id)) => {
+                let left_id = left_id as usize;
+                let right_id = right_id as usize;
+                let self_redness = self.nodes[node_id].is_red();
+                let left_child_redness = self.nodes[left_id].is_red();
+                let right_child_redness = self.nodes[right_id].is_red();
+                // If either of the children is red AND self is red, return FALSE
+                if self_redness & (left_child_redness | right_child_redness) {
+                    false
+                } else {
+                    self.does_not_have_red_child(left_id) & self.does_not_have_red_child(right_id)
+                }
+            }
         }
     }
 }
@@ -543,11 +594,13 @@ pub fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
 {
     dbg!(val);
     assert!(tree.is_balanced(tree_id));
+    assert!(tree.no_double_red(tree_id));
     assert!(tree.contains_key(tree_id, val));
     assert!(tree.remove_entry(tree_id, val).is_some());
     tree.child_parent_link_test(tree_id);
     assert_eq!(tree.get_key_index(tree_id, val), None);
     assert!(tree.is_balanced(tree_id));
+    assert!(tree.no_double_red(tree_id));
 }
 
 mod init_forest_tests {

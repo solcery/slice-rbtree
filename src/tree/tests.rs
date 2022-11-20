@@ -21,6 +21,16 @@ where
     fn child_parent_link_test(&self) {
         self.0.child_parent_link_test(0)
     }
+
+    #[must_use]
+    pub fn is_balanced(&self) -> bool {
+        self.0.is_balanced(0)
+    }
+
+    #[must_use]
+    pub fn no_double_red(&self) -> bool {
+        self.0.no_double_red(0)
+    }
 }
 
 #[test]
