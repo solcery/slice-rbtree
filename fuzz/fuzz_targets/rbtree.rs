@@ -41,11 +41,41 @@ fuzz_target!(|methods: Vec<RBTreeMethod<Key, Value>>| {
             ContainsKey(key) => {
                 let _ = tree.contains_key(&key);
             }
+            Get(key) => {
+                let _ = tree.get(&key);
+            }
             GetEntry(key) => {
                 let _ = tree.get_entry(&key);
             }
             Remove(key) => {
                 let _ = tree.remove(&key);
+            }
+            IsEmpty => {
+                let _ = tree.is_empty();
+            }
+            RemoveEntry(key) => {
+                let _ = tree.remove_entry(&key);
+            }
+            Delete(key) => {
+                let _ = tree.delete(&key);
+            }
+            FirstEntry => {
+                let _ = tree.first_entry();
+            }
+            LastEntry => {
+                let _ = tree.last_entry();
+            }
+            Pairs => {
+                let iter = tree.pairs();
+                let _: Vec<_> = iter.collect();
+            }
+            Keys => {
+                let iter = tree.keys();
+                let _: Vec<_> = iter.collect();
+            }
+            Values => {
+                let iter = tree.values();
+                let _: Vec<_> = iter.collect();
             }
         }
     }
@@ -58,15 +88,15 @@ enum RBTreeMethod<K, V> {
     FreeNodesLeft,
     ContainsKey(K),
     GetEntry(K),
-    //Get,
+    Get(K),
     Insert { key: K, value: V },
-    //IsEmpty,
+    IsEmpty,
     Remove(K),
-    //RemoveEntry(K),
-    //Delete(K),
-    //FirstEntry,
-    //LastEntry,
-    //Pairs,
-    //Keys,
-    //Values,
+    RemoveEntry(K),
+    Delete(K),
+    FirstEntry,
+    LastEntry,
+    Pairs,
+    Keys,
+    Values,
 }

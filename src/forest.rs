@@ -1191,7 +1191,7 @@ where
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_struct("RBForest")
             .field("header", self.header)
-            .field("roots", &self.roots.iter().map(|x|u32::from_be_bytes(*x)))
+            .field("roots", &self.roots.iter().map(|x| u32::from_be_bytes(*x)))
             .field("nodes", &self.nodes)
             .finish()
     }
