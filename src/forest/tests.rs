@@ -2,120 +2,6 @@ use super::*;
 use core::fmt::Debug;
 use pretty_assertions::assert_eq;
 
-impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> RBForest<'a, K, V, KSIZE, VSIZE>
-where
-    K: Eq + Ord + BorshDeserialize + BorshSerialize,
-    V: Eq + BorshDeserialize + BorshSerialize,
-    [(); mem::size_of::<Header>()]: Sized,
-{
-    #[must_use]
-    pub fn is_balanced(&self, tree_id: usize) -> bool {
-        let mut black = 0;
-        let mut node = self.root(tree_id);
-        while let Some(id) = node {
-            if !self.nodes[id as usize].is_red() {
-                black += 1;
-            }
-            node = self.nodes[id as usize].left();
-        }
-        self.node_balanced(self.root(tree_id), black)
-    }
-
-    fn node_balanced(&self, maybe_id: Option<u32>, black: i32) -> bool {
-        if let Some(id) = maybe_id {
-            let id = id as usize;
-            if self.nodes[id].is_red() {
-                let is_left_balanced = self.node_balanced(self.nodes[id].left(), black);
-                let is_right_balanced = self.node_balanced(self.nodes[id].right(), black);
-
-                is_left_balanced && is_right_balanced
-            } else {
-                let is_left_balanced = self.node_balanced(self.nodes[id].left(), black - 1);
-                let is_right_balanced = self.node_balanced(self.nodes[id].right(), black - 1);
-
-                is_left_balanced && is_right_balanced
-            }
-        } else {
-            black == 0
-        }
-    }
-
-    pub fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
-        self.nodes[id] = *node;
-    }
-
-    pub fn set_head(&mut self, head: Option<u32>) {
-        {
-            self.header.set_head(head);
-        }
-    }
-
-    #[must_use]
-    pub fn struct_eq(&self, tree_id: usize, other: &Self, other_tree_id: usize) -> bool {
-        self.node_eq(self.root(tree_id), other.root(other_tree_id))
-    }
-
-    fn node_eq(&self, a: Option<u32>, b: Option<u32>) -> bool {
-        match (a, b) {
-            (Some(self_id), Some(other_id)) => {
-                let self_id = self_id as usize;
-                let other_id = other_id as usize;
-
-                if self.nodes[self_id].is_red() ^ self.nodes[self_id].is_red() {
-                    return false;
-                }
-
-                let self_key =
-                    K::deserialize(&mut self.nodes[self_id].key.as_slice()).expect("Key corrupted");
-                let other_key = K::deserialize(&mut self.nodes[other_id].key.as_slice())
-                    .expect("Key corrupted");
-
-                if self_key != other_key {
-                    return false;
-                }
-
-                let self_value = V::deserialize(&mut self.nodes[self_id].value.as_slice())
-                    .expect("Value corrupted");
-                let other_value = V::deserialize(&mut self.nodes[other_id].value.as_slice())
-                    .expect("Value corrupted");
-
-                if self_value != other_value {
-                    return false;
-                }
-
-                let self_left = self.nodes[self_id].left();
-                let other_left = self.nodes[other_id].left();
-
-                let self_right = self.nodes[self_id].right();
-                let other_right = self.nodes[other_id].right();
-
-                self.node_eq(self_left, other_left) && self.node_eq(self_right, other_right)
-            }
-            (None, None) => true,
-            _ => false,
-        }
-    }
-
-    pub fn child_parent_link_test(&self, tree_id: usize) {
-        if let Some(id) = self.root(tree_id) {
-            assert_eq!(self.nodes[id as usize].parent(), None);
-            self.node_link_test(id as usize);
-        }
-    }
-
-    fn node_link_test(&self, id: usize) {
-        if let Some(left_id) = self.nodes[id].left() {
-            assert_eq!(self.nodes[left_id as usize].parent(), Some(id as u32));
-            self.node_link_test(left_id as usize);
-        }
-
-        if let Some(right_id) = self.nodes[id].right() {
-            assert_eq!(self.nodes[right_id as usize].parent(), Some(id as u32));
-            self.node_link_test(right_id as usize);
-        }
-    }
-}
-
 pub const INSERT_KEYS: [u8; 256] = [
     123, 201, 112, 93, 21, 236, 41, 121, 42, 10, 147, 254, 220, 148, 76, 245, 94, 142, 75, 222,
     132, 215, 86, 150, 31, 137, 60, 120, 14, 36, 77, 35, 192, 224, 204, 97, 129, 80, 252, 99, 79,
@@ -424,7 +310,7 @@ fn delete() {
         assert_eq!(tree.get(0, key), Some(*key));
     }
 
-    tree.child_parent_link_test(0);
+    assert!(tree.is_child_parent_links_consistent(0));
 
     let mut len = INSERT_KEYS.len();
     assert_eq!(tree.len(0), len);
@@ -543,11 +429,13 @@ pub fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
 {
     dbg!(val);
     assert!(tree.is_balanced(tree_id));
+    assert!(tree.no_double_red(tree_id));
     assert!(tree.contains_key(tree_id, val));
     assert!(tree.remove_entry(tree_id, val).is_some());
-    tree.child_parent_link_test(tree_id);
+    assert!(tree.is_child_parent_links_consistent(tree_id));
     assert_eq!(tree.get_key_index(tree_id, val), None);
     assert!(tree.is_balanced(tree_id));
+    assert!(tree.no_double_red(tree_id));
 }
 
 mod init_forest_tests {

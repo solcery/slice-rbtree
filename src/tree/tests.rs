@@ -3,26 +3,6 @@ use crate::forest::{tests as forest_helpers, Node};
 use core::fmt::Debug;
 use pretty_assertions::assert_eq;
 
-impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> RBTree<'a, K, V, KSIZE, VSIZE>
-where
-    K: Eq + Ord + BorshDeserialize + BorshSerialize,
-    V: Eq + BorshDeserialize + BorshSerialize,
-{
-    fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
-        {
-            self.0.set_node(id, node);
-        }
-    }
-
-    fn struct_eq(&self, other: &Self) -> bool {
-        self.0.struct_eq(0, &other.0, 0)
-    }
-
-    fn child_parent_link_test(&self) {
-        self.0.child_parent_link_test(0)
-    }
-}
-
 #[test]
 fn init() {
     let mut vec = create_vec(4, 4, 5);
@@ -292,7 +272,7 @@ fn delete() {
         assert_eq!(tree.get(key), Some(*key));
     }
 
-    tree.child_parent_link_test();
+    assert!(tree.is_child_parent_links_consistent());
 
     let mut len = forest_helpers::INSERT_KEYS.len();
     assert_eq!(tree.len(), len);
@@ -388,4 +368,142 @@ fn assert_rm<K, V, const KSIZE: usize, const VSIZE: usize>(
     V: Eq + BorshDeserialize + BorshSerialize + Debug,
 {
     forest_helpers::assert_rm(val, 0, &mut tree.0);
+}
+
+mod fuzz_cases {
+    use super::*;
+    use crate::tree::internal_checks::RBTreeMethod;
+    use core::mem::size_of;
+    use RBTreeMethod::*;
+
+    #[test]
+    fn case_1() {
+        let size: usize = 10;
+
+        type Key = u32;
+        type Value = [u64; 4];
+
+        const TREE_PARAMS: TreeParams = TreeParams {
+            k_size: size_of::<Key>(),
+            v_size: size_of::<Value>(),
+        };
+
+        let expected_size = tree_size(TREE_PARAMS, size);
+
+        let mut slice = vec![0; expected_size];
+
+        let mut tree: RBTree<Key, Value, { TREE_PARAMS.k_size }, { TREE_PARAMS.v_size }> =
+            RBTree::init_slice(&mut slice).unwrap();
+
+        let methods: Vec<RBTreeMethod<Key, Value>> = vec![
+            Remove(4294967295), //0
+            Insert {
+                key: 3671775962,
+                value: [15770140086514670298, 14342874, 0, 15770157678686371923],
+            }, //1
+            Insert {
+                key: 3671775962,
+                value: [
+                    16710579925594856154,
+                    16710579925595711463,
+                    6365934834201389031,
+                    16710579925595717464,
+                ],
+            }, //2
+            Insert {
+                key: 3890735079,
+                value: [
+                    15770157734754248679,
+                    240633509501658,
+                    0,
+                    17216961102781349888,
+                ],
+            }, //3
+            Insert {
+                key: 4008631002,
+                value: [
+                    15658734,
+                    16573246628723425280,
+                    18439962182505129959,
+                    15770157232650125311,
+                ],
+            }, //4
+            Remove(4294967295), //5
+            Remove(3890735079), //6
+            Remove(3890735079), //7
+            Remove(3504859111), //8
+            Remove(3890735079), //9
+            Insert {
+                key: 3671785434,
+                value: [
+                    42945478618,
+                    16710579925595711463,
+                    6365935208283757543,
+                    16710579925595711487,
+                ],
+            }, //10
+            Remove(3890735079), //11
+            Remove(3671775962), //12
+        ];
+
+        for (i, method) in methods.into_iter().enumerate().take(12) {
+            dbg!(i);
+            dbg!(&tree);
+            tree.apply_method(method);
+            assert!(tree.is_balanced());
+            assert!(tree.no_double_red());
+            assert!(tree.is_child_parent_links_consistent());
+        }
+        // failing part
+        dbg!(&tree);
+        tree.remove(&3671775962);
+    }
+
+    #[test]
+    fn case_2() {
+        let size: usize = 5;
+
+        type Key = u8;
+        type Value = u8;
+
+        const TREE_PARAMS: TreeParams = TreeParams {
+            k_size: size_of::<Key>(),
+            v_size: size_of::<Value>(),
+        };
+
+        let expected_size = tree_size(TREE_PARAMS, size);
+
+        let mut slice = vec![0; expected_size];
+
+        let mut tree: RBTree<Key, Value, { TREE_PARAMS.k_size }, { TREE_PARAMS.v_size }> =
+            RBTree::init_slice(&mut slice).unwrap();
+
+        let methods: Vec<RBTreeMethod<Key, Value>> = vec![
+            Insert { key: 0, value: 255 }, //0
+            Insert {
+                key: 203,
+                value: 203,
+            }, //1
+            Insert {
+                key: 109,
+                value: 109,
+            }, //2
+            RemoveEntry(109),              //3
+            Insert { key: 1, value: 218 }, //4
+        ];
+
+        for method in methods.into_iter().take(4) {
+            tree.apply_method(method);
+            assert!(tree.is_balanced());
+            assert!(tree.no_double_red());
+            assert!(tree.is_child_parent_links_consistent());
+        }
+
+        dbg!(&tree);
+        tree.insert(1, 218).unwrap();
+        dbg!(&tree);
+        assert!(tree.is_balanced());
+        assert!(tree.no_double_red());
+        assert!(tree.is_child_parent_links_consistent());
+    }
 }

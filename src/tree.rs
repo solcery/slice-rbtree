@@ -268,8 +268,13 @@ where
     K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
     V: BorshDeserialize + BorshSerialize + fmt::Debug,
 {
+    #[cfg(not(test))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_map().entries(self.pairs()).finish()
+    }
+    #[cfg(test)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.0.fmt(f)
     }
 }
 
@@ -288,3 +293,6 @@ where
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, feature = "internal_checks"))]
+pub mod internal_checks;
