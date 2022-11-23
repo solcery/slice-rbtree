@@ -634,6 +634,15 @@ where
                 }
             }
             {
+                let right_left_subnode = match self.nodes[id as usize].right() {
+                    Some(sub_id) => self.nodes[sub_id as usize].left(),
+                    None => None,
+                };
+
+                if self.is_red(self.nodes[id as usize].right()) && self.is_red(right_left_subnode) {
+                    self.rotate_right(tree_id, self.nodes[id as usize].right().unwrap());
+                }
+
                 if self.is_red(self.nodes[id as usize].right())
                     && !self.is_red(self.nodes[id as usize].left())
                 {

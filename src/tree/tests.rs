@@ -377,7 +377,6 @@ mod fuzz_cases {
     use RBTreeMethod::*;
 
     #[test]
-    #[ignore]
     fn case_1() {
         let size: usize = 10;
 
@@ -461,7 +460,6 @@ mod fuzz_cases {
     }
 
     #[test]
-    #[ignore]
     fn case_2() {
         let size: usize = 5;
 
@@ -502,7 +500,7 @@ mod fuzz_cases {
         }
 
         dbg!(&tree);
-        tree.insert(1, 218);
+        tree.insert(1, 218).unwrap();
         dbg!(&tree);
         assert!(tree.is_balanced());
         assert!(tree.no_double_red());
