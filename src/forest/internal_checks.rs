@@ -8,6 +8,7 @@ where
     V: Eq + BorshDeserialize + BorshSerialize,
     [(); mem::size_of::<Header>()]: Sized,
 {
+    /// Checks if the tree is balances (for each node black depths of its subtrees are equal)
     #[must_use]
     pub fn is_balanced(&self, tree_id: usize) -> bool {
         let mut black = 0;
@@ -40,16 +41,18 @@ where
         }
     }
 
+    /// Set all the fields of `id` node to a given value (for testing purposes only)
     pub fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
         self.nodes[id] = *node;
     }
 
+    /// Set head of the linked list of free nodes to a given value (for testing purposes only)
     pub fn set_head(&mut self, head: Option<u32>) {
-        {
             self.header.set_head(head);
-        }
     }
 
+    /// Check that two trees are structualy equal (have the same key-valye pairs ordered in the
+    /// same tree structure)
     #[must_use]
     pub fn struct_eq(&self, tree_id: usize, other: &Self, other_tree_id: usize) -> bool {
         self.node_eq(self.root(tree_id), other.root(other_tree_id))
@@ -96,9 +99,11 @@ where
         }
     }
 
+    /// Each node has links to its children and parent.
+    /// This function checks that all link pairs (parent-> child and child->parent) are consistent
     pub fn is_child_parent_links_consistent(&self, tree_id: usize) -> bool {
         if let Some(id) = self.root(tree_id) {
-            if self.nodes[id as usize].parent() == None {
+            if self.nodes[id as usize].parent().is_none() {
                 self.is_node_links_consistent(id as usize)
             } else {
                 false
@@ -138,8 +143,8 @@ where
         }
     }
 
-    // One of the invariants of Red-Black tree is that red node must not have red child
-    // This function checks this invariant
+    /// One of the invariants of Red-Black tree is that red node must not have red child
+    /// This function checks this invariant
     #[must_use]
     pub fn no_double_red(&self, tree_id: usize) -> bool {
         if let Some(id) = self.root(tree_id) {

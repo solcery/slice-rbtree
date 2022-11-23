@@ -1,37 +1,48 @@
 //! Additional methods for self-consictency checking on [`RBTree`]
 use super::*;
 use crate::forest::Node;
+use borsh::maybestd::vec::Vec;
 
-#[warn(missing_docs)]
 impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> RBTree<'a, K, V, KSIZE, VSIZE>
 where
     K: Eq + Ord + BorshDeserialize + BorshSerialize,
     V: Eq + BorshDeserialize + BorshSerialize,
 {
+    /// Set all the fields of `id` node to a given value (for testing purposes only)
     pub fn set_node(&mut self, id: usize, node: &Node<KSIZE, VSIZE>) {
         {
             self.0.set_node(id, node);
         }
     }
 
+    /// Check that two trees are structualy equal (have the same key-valye pairs ordered in the
+    /// same tree structure)
+    #[must_use]
     pub fn struct_eq(&self, other: &Self) -> bool {
         self.0.struct_eq(0, &other.0, 0)
     }
 
+    /// Each node has links to its children and parent.
+    /// This function checks that all link pairs (parent-> child and child->parent) are consistent
+    #[must_use]
     pub fn is_child_parent_links_consistent(&self) -> bool {
         self.0.is_child_parent_links_consistent(0)
     }
 
+    /// Checks if the tree is balances (for each node black depths of its subtrees are equal)
     #[must_use]
     pub fn is_balanced(&self) -> bool {
         self.0.is_balanced(0)
     }
 
+    /// One of the invariants of Red-Black tree is that red node must not have red child
+    /// This function checks this invariant
     #[must_use]
     pub fn no_double_red(&self) -> bool {
         self.0.no_double_red(0)
     }
 
+    /// Unified way to apply [`RBTree`] methods in the fuzzing harness
     pub fn apply_method(&mut self, method: RBTreeMethod<K, V>) {
         use RBTreeMethod::*;
         match method {
@@ -39,7 +50,7 @@ where
                 let _ = self.len();
             }
             Clear => {
-                let _ = self.clear();
+                self.clear();
             }
             FreeNodesLeft => {
                 let _ = self.free_nodes_left();
@@ -90,7 +101,7 @@ where
     }
 }
 
-#[warn(missing_docs)]
+#[allow(missing_docs)]
 #[derive(Debug)]
 #[cfg_attr(fuzzing, derive(arbitrary::Arbitrary))]
 pub enum RBTreeMethod<K, V> {

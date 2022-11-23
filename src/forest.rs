@@ -65,6 +65,10 @@
 //! # Internal structure
 //! To read about internal data layout, compile docs with `--document-private-items` and see
 //! [`internals`] module.
+
+// Added this, because this lint ignores, that len() method also has different signature
+#![allow(clippy::len_without_is_empty)]
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast_mut, cast_slice_mut};
 use core::borrow::Borrow;
@@ -166,15 +170,13 @@ pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> 
         *root = u32::to_be_bytes(u32::MAX);
     }
 
-    {
-        header.fill(
-            params.k_size as u16,
-            params.v_size as u16,
-            nodes_len,
-            params.max_roots as u32,
-            Some(nodes_len - 1),
-        );
-    }
+    header.fill(
+        params.k_size as u16,
+        params.v_size as u16,
+        nodes_len,
+        params.max_roots as u32,
+        Some(nodes_len - 1),
+    );
     Ok(())
 }
 
@@ -229,27 +231,26 @@ where
             return Err(Error::TooBig);
         }
 
-        {
-            // Allocator initialization
-            nodes[0].set_parent(None);
+        // Allocator initialization
+        nodes[0].set_parent(None);
 
-            for (i, node) in nodes.iter_mut().enumerate().skip(1) {
-                node.set_parent(Some((i - 1) as u32));
-            }
-
-            // Roots initialization
-            for root in roots.iter_mut() {
-                *root = u32::to_be_bytes(u32::MAX);
-            }
-
-            header.fill(
-                KSIZE as u16,
-                VSIZE as u16,
-                nodes.len() as u32,
-                max_roots as u32,
-                Some((nodes.len() - 1) as u32),
-            );
+        for (i, node) in nodes.iter_mut().enumerate().skip(1) {
+            node.set_parent(Some((i - 1) as u32));
         }
+
+        // Roots initialization
+        for root in roots.iter_mut() {
+            *root = u32::to_be_bytes(u32::MAX);
+        }
+
+        header.fill(
+            KSIZE as u16,
+            VSIZE as u16,
+            nodes.len() as u32,
+            max_roots as u32,
+            Some((nodes.len() - 1) as u32),
+        );
+
         Ok(Self {
             header,
             nodes,
@@ -350,19 +351,17 @@ where
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     pub fn clear(&mut self) {
-        {
-            // Allocator reinitialization
-            self.nodes[0].set_parent(None);
+        // Allocator reinitialization
+        self.nodes[0].set_parent(None);
 
-            for (i, node) in self.nodes.iter_mut().enumerate().skip(1) {
-                node.set_parent(Some((i - 1) as u32));
-            }
-
-            for tree_id in 0..self.roots.len() {
-                self.set_root(tree_id, None);
-            }
-            self.header.set_head(Some((self.nodes.len() - 1) as u32));
+        for (i, node) in self.nodes.iter_mut().enumerate().skip(1) {
+            node.set_parent(Some((i - 1) as u32));
         }
+
+        for tree_id in 0..self.roots.len() {
+            self.set_root(tree_id, None);
+        }
+        self.header.set_head(Some((self.nodes.len() - 1) as u32));
     }
 
     /// Returns true if the map contains a value for the specified key
@@ -417,10 +416,8 @@ where
         let result = self.put(tree_id, self.root(tree_id), None, key, value);
         match result {
             Ok((id, old_val)) => {
-                {
-                    self.set_root(tree_id, Some(id));
-                    self.nodes[id as usize].set_is_red(false);
-                }
+                self.set_root(tree_id, Some(id));
+                self.nodes[id as usize].set_is_red(false);
                 Ok(old_val)
             }
             Err(e) => Err(e),
@@ -633,43 +630,41 @@ where
                     }
                 }
             }
+            let right_left_subnode = match self.nodes[id as usize].right() {
+                Some(sub_id) => self.nodes[sub_id as usize].left(),
+                None => None,
+            };
+
+            if self.is_red(self.nodes[id as usize].right()) && self.is_red(right_left_subnode) {
+                self.rotate_right(tree_id, self.nodes[id as usize].right().unwrap());
+            }
+
+            if self.is_red(self.nodes[id as usize].right())
+                && !self.is_red(self.nodes[id as usize].left())
             {
-                let right_left_subnode = match self.nodes[id as usize].right() {
-                    Some(sub_id) => self.nodes[sub_id as usize].left(),
-                    None => None,
-                };
+                id = self.rotate_left(tree_id, id);
+            }
 
-                if self.is_red(self.nodes[id as usize].right()) && self.is_red(right_left_subnode) {
-                    self.rotate_right(tree_id, self.nodes[id as usize].right().unwrap());
-                }
+            let left_subnode = match self.nodes[id as usize].left() {
+                Some(sub_id) => self.nodes[sub_id as usize].left(),
+                None => None,
+            };
 
-                if self.is_red(self.nodes[id as usize].right())
-                    && !self.is_red(self.nodes[id as usize].left())
-                {
-                    id = self.rotate_left(tree_id, id);
-                }
+            if self.is_red(self.nodes[id as usize].left()) && self.is_red(left_subnode) {
+                id = self.rotate_right(tree_id, id);
+            }
 
-                let left_subnode = match self.nodes[id as usize].left() {
-                    Some(sub_id) => self.nodes[sub_id as usize].left(),
-                    None => None,
-                };
+            if self.is_red(self.nodes[id as usize].right())
+                && self.is_red(self.nodes[id as usize].left())
+            {
+                // If nodes are red, they are not Option::None, so unwrap will never fail
+                let left_id = self.nodes[id as usize].left().unwrap() as usize;
+                let right_id = self.nodes[id as usize].right().unwrap() as usize;
 
-                if self.is_red(self.nodes[id as usize].left()) && self.is_red(left_subnode) {
-                    id = self.rotate_right(tree_id, id);
-                }
-
-                if self.is_red(self.nodes[id as usize].right())
-                    && self.is_red(self.nodes[id as usize].left())
-                {
-                    // If nodes are red, they are not Option::None, so unwrap will never fail
-                    let left_id = self.nodes[id as usize].left().unwrap() as usize;
-                    let right_id = self.nodes[id as usize].right().unwrap() as usize;
-
-                    // Color swap
-                    self.nodes[left_id].set_is_red(false);
-                    self.nodes[right_id].set_is_red(false);
-                    self.nodes[id as usize].set_is_red(true);
-                }
+                // Color swap
+                self.nodes[left_id].set_is_red(false);
+                self.nodes[right_id].set_is_red(false);
+                self.nodes[id as usize].set_is_red(true);
             }
 
             Ok((id, old_val))
@@ -680,25 +675,19 @@ where
             };
             let new_node = &mut self.nodes[new_id];
 
-            {
-                new_node.init_node(parent);
-            }
+            new_node.init_node(parent);
 
             // Here it is ok to write directly to slice, because in case of error the node
             // will be deallocated anyway,
             if value.serialize(&mut new_node.value.as_mut_slice()).is_err() {
-                {
-                    // SAFETY: We are deleting previously allocated empty node, so no invariants
-                    // are changed.
-                    self.deallocate_node(new_id);
-                }
+                // SAFETY: We are deleting previously allocated empty node, so no invariants
+                // are changed.
+                self.deallocate_node(new_id);
                 return Err(Error::ValueSerializationError);
             }
 
             if key.serialize(&mut new_node.key.as_mut_slice()).is_err() {
-                {
-                    self.deallocate_node(new_id);
-                }
+                self.deallocate_node(new_id);
                 return Err(Error::KeySerializationError);
             }
 
@@ -739,30 +728,28 @@ where
             .right()
             .expect("RBTree invariants corrupted: rotate_left on subtree without right child");
 
-        {
-            self.nodes[h as usize].set_right(self.nodes[x as usize].left());
-            self.nodes[x as usize].set_left(Some(h));
-            self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
-            self.nodes[h as usize].set_is_red(true);
+        self.nodes[h as usize].set_right(self.nodes[x as usize].left());
+        self.nodes[x as usize].set_left(Some(h));
+        self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
+        self.nodes[h as usize].set_is_red(true);
 
-            // fix parents
-            if let Some(parent_id) = self.nodes[h as usize].parent() {
-                let parent_node = &mut self.nodes[parent_id as usize];
-                if parent_node.left() == Some(h) {
-                    parent_node.set_left(Some(x));
-                } else {
-                    debug_assert_eq!(parent_node.right(), Some(h));
-
-                    parent_node.set_right(Some(x));
-                }
+        // fix parents
+        if let Some(parent_id) = self.nodes[h as usize].parent() {
+            let parent_node = &mut self.nodes[parent_id as usize];
+            if parent_node.left() == Some(h) {
+                parent_node.set_left(Some(x));
             } else {
-                self.set_root(tree_id, Some(x));
+                debug_assert_eq!(parent_node.right(), Some(h));
+
+                parent_node.set_right(Some(x));
             }
-            self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
-            self.nodes[h as usize].set_parent(Some(x));
-            if let Some(right) = self.nodes[h as usize].right() {
-                self.nodes[right as usize].set_parent(Some(h));
-            }
+        } else {
+            self.set_root(tree_id, Some(x));
+        }
+        self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
+        self.nodes[h as usize].set_parent(Some(x));
+        if let Some(right) = self.nodes[h as usize].right() {
+            self.nodes[right as usize].set_parent(Some(h));
         }
 
         x
@@ -773,30 +760,28 @@ where
             .left()
             .expect("RBTree invariants corrupted: rotate_left on subtree without left child");
 
-        {
-            self.nodes[h as usize].set_left(self.nodes[x as usize].right());
-            self.nodes[x as usize].set_right(Some(h));
-            self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
-            self.nodes[h as usize].set_is_red(true);
+        self.nodes[h as usize].set_left(self.nodes[x as usize].right());
+        self.nodes[x as usize].set_right(Some(h));
+        self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
+        self.nodes[h as usize].set_is_red(true);
 
-            // fix parents
-            if let Some(parent_id) = self.nodes[h as usize].parent() {
-                let parent_node = &mut self.nodes[parent_id as usize];
-                if parent_node.left() == Some(h) {
-                    parent_node.set_left(Some(x));
-                } else {
-                    debug_assert_eq!(parent_node.right(), Some(h));
-
-                    parent_node.set_right(Some(x));
-                }
+        // fix parents
+        if let Some(parent_id) = self.nodes[h as usize].parent() {
+            let parent_node = &mut self.nodes[parent_id as usize];
+            if parent_node.left() == Some(h) {
+                parent_node.set_left(Some(x));
             } else {
-                self.set_root(tree_id, Some(x));
+                debug_assert_eq!(parent_node.right(), Some(h));
+
+                parent_node.set_right(Some(x));
             }
-            self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
-            self.nodes[h as usize].set_parent(Some(x));
-            if let Some(left) = self.nodes[h as usize].left() {
-                self.nodes[left as usize].set_parent(Some(h));
-            }
+        } else {
+            self.set_root(tree_id, Some(x));
+        }
+        self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
+        self.nodes[h as usize].set_parent(Some(x));
+        if let Some(left) = self.nodes[h as usize].left() {
+            self.nodes[left as usize].set_parent(Some(h));
         }
 
         x
@@ -823,12 +808,10 @@ where
                 debug_assert!(!self.nodes[id].is_red());
                 debug_assert!(self.nodes[left_id].is_red());
 
-                {
-                    self.swap_nodes(id, left_id);
+                self.swap_nodes(id, left_id);
 
-                    self.nodes[id].set_left(None);
-                    self.deallocate_node(left_id);
-                }
+                self.nodes[id].set_left(None);
+                self.deallocate_node(left_id);
 
                 left_id
             }
@@ -838,13 +821,11 @@ where
                 debug_assert!(!self.nodes[id].is_red());
                 debug_assert!(self.nodes[right_id].is_red());
 
-                {
-                    self.swap_nodes(id, right_id);
+                self.swap_nodes(id, right_id);
 
-                    self.nodes[id].set_right(None);
+                self.nodes[id].set_right(None);
 
-                    self.deallocate_node(right_id);
-                }
+                self.deallocate_node(right_id);
 
                 right_id
             }
@@ -854,7 +835,20 @@ where
                     let parent_id = self.nodes[id].parent().unwrap();
                     let parent_node = &mut self.nodes[parent_id as usize];
 
-                    {
+                    if parent_node.left() == Some(id as u32) {
+                        parent_node.set_left(None);
+                    } else {
+                        debug_assert_eq!(parent_node.right(), Some(id as u32));
+
+                        parent_node.set_right(None);
+                    }
+
+                    self.deallocate_node(id);
+
+                    id
+                } else {
+                    if let Some(parent_id) = self.nodes[id].parent() {
+                        let parent_node = &mut self.nodes[parent_id as usize];
                         if parent_node.left() == Some(id as u32) {
                             parent_node.set_left(None);
                         } else {
@@ -863,33 +857,12 @@ where
                             parent_node.set_right(None);
                         }
 
-                        self.deallocate_node(id);
-                    }
-
-                    id
-                } else {
-                    if let Some(parent_id) = self.nodes[id].parent() {
-                        let parent_node = &mut self.nodes[parent_id as usize];
-                        {
-                            if parent_node.left() == Some(id as u32) {
-                                parent_node.set_left(None);
-                            } else {
-                                debug_assert_eq!(parent_node.right(), Some(id as u32));
-
-                                parent_node.set_right(None);
-                            }
-
-                            self.balance_subtree(tree_id, parent_id as usize);
-                        }
+                        self.balance_subtree(tree_id, parent_id as usize);
                     } else {
-                        {
-                            self.set_root(tree_id, None);
-                        }
+                        self.set_root(tree_id, None);
                     }
 
-                    {
-                        self.deallocate_node(id);
-                    }
+                    self.deallocate_node(id);
 
                     id
                 }
@@ -908,9 +881,7 @@ where
         }
 
         debug_assert_ne!(id, max_id);
-        {
-            self.swap_nodes(id, max_id);
-        }
+        self.swap_nodes(id, max_id);
         max_id
     }
 
@@ -1139,10 +1110,8 @@ where
         let allocator_head = self.header.head();
         let node_index = Some(index as u32);
 
-        {
-            self.nodes[index].set_parent(allocator_head);
-            self.header.set_head(node_index);
-        }
+        self.nodes[index].set_parent(allocator_head);
+        self.header.set_head(node_index);
     }
 
     /// Allocates a node
@@ -1158,9 +1127,7 @@ where
         match allocator_head {
             Some(index) => {
                 let new_head = self.nodes[index as usize].parent();
-                {
-                    self.header.set_head(new_head);
-                }
+                self.header.set_head(new_head);
                 Some(index as usize)
             }
             None => None,
