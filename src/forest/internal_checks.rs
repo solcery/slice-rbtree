@@ -192,4 +192,88 @@ where
             }
         }
     }
+
+    /// Unified way to apply [`RBForest`] methods in the fuzzing harness
+    pub fn apply_method(&mut self, method: RBForestMethod<K, V>) {
+        use RBForestMethod::*;
+        match method {
+            Len { tree_id } => {
+                let _ = self.len(tree_id);
+            }
+            Clear => {
+                self.clear();
+            }
+            FreeNodesLeft => {
+                let _ = self.free_nodes_left();
+            }
+            Insert {
+                tree_id,
+                key,
+                value,
+            } => {
+                let _ = self.insert(tree_id, key, value);
+            }
+            ContainsKey { key, tree_id } => {
+                let _ = self.contains_key(tree_id, &key);
+            }
+            Get { key, tree_id } => {
+                let _ = self.get(tree_id, &key);
+            }
+            GetEntry { key, tree_id } => {
+                let _ = self.get_entry(tree_id, &key);
+            }
+            Remove { key, tree_id } => {
+                let _ = self.remove(tree_id, &key);
+            }
+            IsEmpty { tree_id } => {
+                let _ = self.is_empty(tree_id);
+            }
+            RemoveEntry { key, tree_id } => {
+                let _ = self.remove_entry(tree_id, &key);
+            }
+            Delete { key, tree_id } => {
+                let _ = self.delete(tree_id, &key);
+            }
+            FirstEntry { tree_id } => {
+                let _ = self.first_entry(tree_id);
+            }
+            LastEntry { tree_id } => {
+                let _ = self.last_entry(tree_id);
+            }
+            Pairs { tree_id } => {
+                let iter = self.pairs(tree_id);
+                let _: Vec<_> = iter.collect();
+            }
+            Keys { tree_id } => {
+                let iter = self.keys(tree_id);
+                let _: Vec<_> = iter.collect();
+            }
+            Values { tree_id } => {
+                let iter = self.values(tree_id);
+                let _: Vec<_> = iter.collect();
+            }
+        }
+    }
+}
+
+#[allow(missing_docs)]
+#[derive(Debug)]
+#[cfg_attr(fuzzing, derive(arbitrary::Arbitrary))]
+pub enum RBForestMethod<K, V> {
+    Len { tree_id: usize },
+    Clear,
+    FreeNodesLeft,
+    ContainsKey { tree_id: usize, key: K },
+    GetEntry { tree_id: usize, key: K },
+    Get { tree_id: usize, key: K },
+    Insert { tree_id: usize, key: K, value: V },
+    IsEmpty { tree_id: usize },
+    Remove { tree_id: usize, key: K },
+    RemoveEntry { tree_id: usize, key: K },
+    Delete { tree_id: usize, key: K },
+    FirstEntry { tree_id: usize },
+    LastEntry { tree_id: usize },
+    Pairs { tree_id: usize },
+    Keys { tree_id: usize },
+    Values { tree_id: usize },
 }

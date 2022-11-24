@@ -26,3 +26,9 @@ name = "rbtree"
 path = "fuzz_targets/rbtree.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rbforest"
+path = "fuzz_targets/rbforest.rs"
+test = false
+doc = false
