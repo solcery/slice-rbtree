@@ -14,9 +14,6 @@ exclude = [
     "fuzz/*",
 ]
 
-[features]
-internal_checks = ["arbitrary"]
-
 [dependencies]
 arbitrary = { version = "1", optional = true, features = ["derive"] }
 borsh = { version = "0.9.1", default_features = false, features = ["const-generics"] }

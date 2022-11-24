@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Extend` trait for `RBTree`
 - `FusedIterator` trait for iterators over `RBTree` and `RBForest`
 - Invariant checkers in tests for better error-catching
-- Internal consistency checks, can be turned on via `test`, `fuzzing` or `internal_checks` features
-- Fuzzing harness
+- Internal consistency checks, can be turned on via `test` or `fuzzing` features
+- Fuzzing harnesses for `RBTree` and `RBForest`
 
 ### Changed
 - Removed internal use of `unsafe` keyword, as it actually can not cause neither soundness problems nor memory safety bugs.

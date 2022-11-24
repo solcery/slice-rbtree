@@ -1,4 +1,4 @@
-//! Additional methods for self-consictency checking on [`RBTree`]
+//! Additional methods for self-consistency checking on [`RBTree`]
 use super::*;
 use crate::forest::Node;
 use borsh::maybestd::vec::Vec;
@@ -15,7 +15,7 @@ where
         }
     }
 
-    /// Check that two trees are structualy equal (have the same key-valye pairs ordered in the
+    /// Check that two trees are structurally equal (have the same key-value pairs ordered in the
     /// same tree structure)
     #[must_use]
     pub fn struct_eq(&self, other: &Self) -> bool {

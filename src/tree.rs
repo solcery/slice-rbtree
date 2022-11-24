@@ -294,5 +294,5 @@ where
 #[cfg(test)]
 mod tests;
 
-#[cfg(any(test, feature = "internal_checks"))]
+#[cfg(any(test, fuzzing))]
 pub mod internal_checks;
