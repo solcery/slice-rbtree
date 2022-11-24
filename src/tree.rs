@@ -128,7 +128,7 @@ where
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len(0)
+        self.0.len(0).unwrap()
     }
 
     /// Clears the tree
@@ -247,19 +247,19 @@ where
     /// Creates an iterator over key-value pairs, in order by key
     #[must_use]
     pub fn pairs<'b>(&'b self) -> PairsIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.pairs(0)
+        self.0.pairs(0).unwrap()
     }
 
     /// Creates an iterator over keys, from smallest to biggest
     #[must_use]
     pub fn keys<'b>(&'b self) -> KeysIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.keys(0)
+        self.0.keys(0).unwrap()
     }
 
     /// Creates an iterator over values, in order by key
     #[must_use]
     pub fn values<'b>(&'b self) -> ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.values(0)
+        self.0.values(0).unwrap()
     }
 }
 

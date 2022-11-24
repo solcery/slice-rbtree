@@ -241,16 +241,19 @@ where
                 let _ = self.last_entry(tree_id);
             }
             Pairs { tree_id } => {
-                let iter = self.pairs(tree_id);
-                let _: Vec<_> = iter.collect();
+                if let Ok(iter) = self.pairs(tree_id) {
+                    let _: Vec<_> = iter.collect();
+                }
             }
             Keys { tree_id } => {
-                let iter = self.keys(tree_id);
-                let _: Vec<_> = iter.collect();
+                if let Ok(iter) = self.keys(tree_id) {
+                    let _: Vec<_> = iter.collect();
+                }
             }
             Values { tree_id } => {
-                let iter = self.values(tree_id);
-                let _: Vec<_> = iter.collect();
+                if let Ok(iter) = self.values(tree_id) {
+                    let _: Vec<_> = iter.collect();
+                }
             }
         }
     }

@@ -28,27 +28,27 @@ fn init() {
 
     assert_eq!(tree.insert(0, 12, 32), Ok(None));
     assert_eq!(tree.get(0, &12), Some(32));
-    assert_eq!(tree.len(0), 1);
+    assert_eq!(tree.len(0), Ok(1));
     assert_eq!(tree.free_nodes_left(), 4);
 
     assert_eq!(tree.insert(0, 32, 44), Ok(None));
     assert_eq!(tree.get(0, &32), Some(44));
-    assert_eq!(tree.len(0), 2);
+    assert_eq!(tree.len(0), Ok(2));
     assert_eq!(tree.free_nodes_left(), 3);
 
     assert_eq!(tree.insert(0, 123, 321), Ok(None));
     assert_eq!(tree.get(0, &123), Some(321));
-    assert_eq!(tree.len(0), 3);
+    assert_eq!(tree.len(0), Ok(3));
     assert_eq!(tree.free_nodes_left(), 2);
 
     assert_eq!(tree.insert(0, 123, 322), Ok(Some(321)));
     assert_eq!(tree.get(0, &123), Some(322));
-    assert_eq!(tree.len(0), 3);
+    assert_eq!(tree.len(0), Ok(3));
     assert_eq!(tree.free_nodes_left(), 2);
 
     assert_eq!(tree.insert(0, 14, 32), Ok(None));
     assert_eq!(tree.get(0, &14), Some(32));
-    assert_eq!(tree.len(0), 4);
+    assert_eq!(tree.len(0), Ok(4));
     assert_eq!(tree.free_nodes_left(), 1);
 
     assert_eq!(tree.insert(0, 1, 2), Ok(None));
@@ -59,10 +59,10 @@ fn init() {
 
     assert_eq!(tree.get(0, &15), None);
 
-    assert_eq!(tree.len(0), 5);
+    assert_eq!(tree.len(0), Ok(5));
 
     tree.clear();
-    assert_eq!(tree.len(0), 0);
+    assert_eq!(tree.len(0), Ok(0));
     assert_eq!(tree.free_nodes_left(), 5);
 }
 
@@ -243,7 +243,7 @@ fn test_tree_strings() {
 
     assert_eq!(tree.get(0, &41).unwrap(), "99".to_string());
     assert_eq!(tree.get(0, &12).unwrap(), "val".to_string());
-    assert_eq!(tree.len(0), 9);
+    assert_eq!(tree.len(0), Ok(9));
 }
 
 #[test]
@@ -292,7 +292,7 @@ fn test_tree_string_keys() {
 
     assert_eq!(tree.get(0, &"41".to_string()).unwrap(), "99".to_string());
     assert_eq!(tree.get(0, &"12".to_string()).unwrap(), "val".to_string());
-    assert_eq!(tree.len(0), 9);
+    assert_eq!(tree.len(0), Ok(9));
 }
 
 #[test]
@@ -313,11 +313,11 @@ fn delete() {
     assert!(tree.is_child_parent_links_consistent(0));
 
     let mut len = INSERT_KEYS.len();
-    assert_eq!(tree.len(0), len);
+    assert_eq!(tree.len(0), Ok(len));
     for key in &INSERT_KEYS {
         assert_rm(key, 0, &mut tree);
         len -= 1;
-        assert_eq!(tree.len(0), len);
+        assert_eq!(tree.len(0), Ok(len));
     }
 }
 
@@ -332,7 +332,7 @@ fn pairs_iterator() {
         assert_eq!(tree.insert(0, *key, *key), Ok(None));
     }
 
-    let tree_iter = tree.pairs(0);
+    let tree_iter = tree.pairs(0).unwrap();
 
     let tree_data: Vec<(u8, u8)> = tree_iter.collect();
 
@@ -397,7 +397,11 @@ fn deserialization() {
     expected_tree.insert(1, 4, 0).unwrap();
 
     for root in 0..expected_tree.max_roots() {
-        for (key_value, expected_key_value) in forest.pairs(root).zip(expected_tree.pairs(root)) {
+        for (key_value, expected_key_value) in forest
+            .pairs(root)
+            .unwrap()
+            .zip(expected_tree.pairs(root).unwrap())
+        {
             assert_eq!(key_value, expected_key_value);
         }
     }
@@ -507,23 +511,23 @@ mod init_forest {
 
         assert_eq!(tree.insert(0, 12, 32), Ok(None));
         assert_eq!(tree.get(0, &12), Some(32));
-        assert_eq!(tree.len(0), 1);
+        assert_eq!(tree.len(0), Ok(1));
 
         assert_eq!(tree.insert(0, 32, 44), Ok(None));
         assert_eq!(tree.get(0, &32), Some(44));
-        assert_eq!(tree.len(0), 2);
+        assert_eq!(tree.len(0), Ok(2));
 
         assert_eq!(tree.insert(0, 123, 321), Ok(None));
         assert_eq!(tree.get(0, &123), Some(321));
-        assert_eq!(tree.len(0), 3);
+        assert_eq!(tree.len(0), Ok(3));
 
         assert_eq!(tree.insert(0, 123, 322), Ok(Some(321)));
         assert_eq!(tree.get(0, &123), Some(322));
-        assert_eq!(tree.len(0), 3);
+        assert_eq!(tree.len(0), Ok(3));
 
         assert_eq!(tree.insert(0, 14, 32), Ok(None));
         assert_eq!(tree.get(0, &14), Some(32));
-        assert_eq!(tree.len(0), 4);
+        assert_eq!(tree.len(0), Ok(4));
 
         assert_eq!(tree.insert(0, 1, 2), Ok(None));
         assert_eq!(tree.insert(0, 1, 4), Ok(Some(2)));
@@ -531,7 +535,7 @@ mod init_forest {
 
         assert_eq!(tree.get(0, &15), None);
 
-        assert_eq!(tree.len(0), 5);
+        assert_eq!(tree.len(0), Ok(5));
     }
 
     #[test]

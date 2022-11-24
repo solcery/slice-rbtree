@@ -33,4 +33,6 @@ pub enum Error {
     WrongSliceSize,
     /// value size of the map does not match key size of the type
     WrongValueSize,
+    /// There are fewer trees than the suppied tree_id
+    TooBigTreeId,
 }

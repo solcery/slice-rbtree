@@ -109,13 +109,13 @@ reviews.insert(1, "The Lord of the Rings".to_string(), "Poor Gollum.".to_string(
 if !reviews.contains_key(0, "Les Misérables") {
     println!(
         "We've got {} movie reviews, but Les Misérables ain't one.",
-        reviews.len(0)
+        reviews.len(0).expect("No such tree")
     );
 }
 if reviews.contains_key(1, "1984") {
     println!(
         "We've got {} book reviews and 1984 among them: {}.",
-        reviews.len(0),
+        reviews.len(0).expect("No such tree"),
         reviews.get(1, "1984").unwrap()
     );
 }
@@ -133,7 +133,7 @@ for movie in &to_find {
 }
 
 // iterate over movies.
-for (movie, review) in reviews.pairs(0) {
+for (movie, review) in reviews.pairs(0).expect("No such tree") {
     println!("{movie}: \"{review}\"");
 }
 ///

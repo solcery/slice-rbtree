@@ -5,7 +5,7 @@ use slice_rbtree::tree::internal_checks::RBTreeMethod;
 use slice_rbtree::tree::{tree_size, RBTree, TreeParams};
 use std::mem::size_of;
 
-const SIZE: usize = 256;
+const SIZE: usize = 40;
 
 type Key = u8;
 type Value = u8;

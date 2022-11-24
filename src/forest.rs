@@ -32,11 +32,11 @@
 //! // check for a specific one.
 //! if !reviews.contains_key(0,"Les Misérables") {
 //!     println!("We've got {} movie reviews, but Les Misérables ain't one.",
-//!              reviews.len(0));
+//!              reviews.len(0).unwrap());
 //! }
 //! if reviews.contains_key(1,"1984") {
 //!     println!("We've got {} book reviews and 1984 among them: {}.",
-//!              reviews.len(0), reviews.get(1, "1984").unwrap());
+//!              reviews.len(0).unwrap(), reviews.get(1, "1984").unwrap());
 //! }
 //!
 //! // oops, this review has a lot of spelling mistakes, let's delete it.
@@ -52,7 +52,7 @@
 //! }
 //!
 //! // iterate over movies.
-//! for (movie, review) in reviews.pairs(0) {
+//! for (movie, review) in reviews.pairs(0).expect("No such tree") {
 //!     println!("{movie}: \"{review}\"");
 //! }
 //!
@@ -323,8 +323,12 @@ where
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     #[must_use]
-    pub fn len(&self, tree_id: usize) -> usize {
-        self.size(self.root(tree_id))
+    pub fn len(&self, tree_id: usize) -> Result<usize, Error> {
+        if self.roots.len() > tree_id {
+            Ok(self.size(self.root(tree_id)))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Returns the maximum number of trees in the forest
@@ -373,7 +377,11 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).is_some()
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).is_some()
+        } else {
+            false
+        }
     }
 
     /// Returns a key-value pair corresponding to the supplied key
@@ -385,12 +393,17 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).map(|id| {
-            let node = &self.nodes[id];
-            let node_key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let node_value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (node_key, node_value)
-        })
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).map(|id| {
+                let node = &self.nodes[id];
+                let node_key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let node_value =
+                    V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (node_key, node_value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the value corresponding to the key
@@ -402,32 +415,45 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).map(|id| {
-            let node = &self.nodes[id];
-            let node_value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            node_value
-        })
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).map(|id| {
+                let node = &self.nodes[id];
+                let node_value =
+                    V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                node_value
+            })
+        } else {
+            None
+        }
     }
 
     /// Inserts a new key-value pair and returns the old value if it was present
     ///
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     pub fn insert(&mut self, tree_id: usize, key: K, value: V) -> Result<Option<V>, Error> {
-        let result = self.put(tree_id, self.root(tree_id), None, key, value);
-        match result {
-            Ok((id, old_val)) => {
-                self.set_root(tree_id, Some(id));
-                self.nodes[id as usize].set_is_red(false);
-                Ok(old_val)
+        if self.roots.len() > tree_id {
+            let result = self.put(tree_id, self.root(tree_id), None, key, value);
+            match result {
+                Ok((id, old_val)) => {
+                    self.set_root(tree_id, Some(id));
+                    self.nodes[id as usize].set_is_red(false);
+                    Ok(old_val)
+                }
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
+        } else {
+            Err(Error::TooBigTreeId)
         }
     }
 
     /// Returns `true` if the tree contains no elements
     #[must_use]
     pub fn is_empty(&self, tree_id: usize) -> bool {
-        self.root(tree_id).is_none()
+        if self.roots.len() > tree_id {
+            self.root(tree_id).is_none()
+        } else {
+            true
+        }
     }
 
     /// Deletes entry and returns deserialized value
@@ -438,13 +464,17 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key).map(|id| {
-            let deallocated_node_id = { self.delete_node(tree_id, id) };
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key).map(|id| {
+                let deallocated_node_id = { self.delete_node(tree_id, id) };
 
-            let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
-                .expect("Value corrupted");
-            value
-        })
+                let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
+                    .expect("Value corrupted");
+                value
+            })
+        } else {
+            None
+        }
     }
 
     /// Deletes entry and returns deserialized key-value pair
@@ -455,15 +485,19 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key).map(|id| {
-            let deallocated_node_id = { self.delete_node(tree_id, id) };
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key).map(|id| {
+                let deallocated_node_id = { self.delete_node(tree_id, id) };
 
-            let key = K::deserialize(&mut self.nodes[deallocated_node_id].key.as_slice())
-                .expect("Key corrupted");
-            let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
-                .expect("Value corrupted");
-            (key, value)
-        })
+                let key = K::deserialize(&mut self.nodes[deallocated_node_id].key.as_slice())
+                    .expect("Key corrupted");
+                let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
+                    .expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Deletes entry without deserializing the value.
@@ -474,38 +508,63 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key)
-            .map(|id| {
-                self.delete_node(tree_id, id);
-            })
-            .is_some()
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key)
+                .map(|id| {
+                    self.delete_node(tree_id, id);
+                })
+                .is_some()
+        } else {
+            false
+        }
     }
 
     /// Creates an iterator over key-value pairs, in order by key
     #[must_use]
-    pub fn pairs<'b>(&'b self, tree_id: usize) -> PairsIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        PairsIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn pairs<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<PairsIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(PairsIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Creates an iterator over keys, from smallest to biggest
     #[must_use]
-    pub fn keys<'b>(&'b self, tree_id: usize) -> KeysIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        KeysIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn keys<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<KeysIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(KeysIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Creates an iterator over values, in order by key
     #[must_use]
-    pub fn values<'b>(&'b self, tree_id: usize) -> ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        ValuesIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn values<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(ValuesIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Returns the first key-value pair in the map
@@ -513,12 +572,16 @@ where
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     #[must_use]
     pub fn first_entry(&self, tree_id: usize) -> Option<(K, V)> {
-        self.root(tree_id).map(|root_id| {
-            let node = &self.nodes[self.min(root_id as usize)];
-            let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (key, value)
-        })
+        if self.roots.len() > tree_id {
+            self.root(tree_id).map(|root_id| {
+                let node = &self.nodes[self.min(root_id as usize)];
+                let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the last key-value pair in the map
@@ -526,12 +589,16 @@ where
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     #[must_use]
     pub fn last_entry(&self, tree_id: usize) -> Option<(K, V)> {
-        self.root(tree_id).map(|root_id| {
-            let node = &self.nodes[self.max(root_id as usize)];
-            let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (key, value)
-        })
+        if self.roots.len() > tree_id {
+            self.root(tree_id).map(|root_id| {
+                let node = &self.nodes[self.max(root_id as usize)];
+                let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     fn root(&self, id: usize) -> Option<u32> {
