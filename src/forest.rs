@@ -322,7 +322,6 @@ where
     /// Returns the number of occupied nodes
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
-    #[must_use]
     pub fn len(&self, tree_id: usize) -> Result<usize, Error> {
         if self.roots.len() > tree_id {
             Ok(self.size(self.root(tree_id)))
@@ -520,7 +519,6 @@ where
     }
 
     /// Creates an iterator over key-value pairs, in order by key
-    #[must_use]
     pub fn pairs<'b>(
         &'b self,
         tree_id: usize,
@@ -536,7 +534,6 @@ where
     }
 
     /// Creates an iterator over keys, from smallest to biggest
-    #[must_use]
     pub fn keys<'b>(
         &'b self,
         tree_id: usize,
@@ -552,7 +549,6 @@ where
     }
 
     /// Creates an iterator over values, in order by key
-    #[must_use]
     pub fn values<'b>(
         &'b self,
         tree_id: usize,

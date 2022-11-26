@@ -10,7 +10,6 @@ categories = ["data-structures", "embedded", "no-std"]
 license = "Apache-2.0"
 exclude = [
     "assets/*",
-    "benches/*",
     "fuzz/*",
 ]
 
