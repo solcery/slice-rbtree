@@ -62,7 +62,7 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
         self.flags & 0b1000 != 0
     }
 
-    pub unsafe fn set_left(&mut self, left: Option<u32>) {
+    pub fn set_left(&mut self, left: Option<u32>) {
         // bit position of the flag is 0
         match left {
             Some(idx) => {
@@ -76,7 +76,7 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
         }
     }
 
-    pub unsafe fn set_right(&mut self, right: Option<u32>) {
+    pub fn set_right(&mut self, right: Option<u32>) {
         // bit position of the flag is 1
         match right {
             Some(idx) => {
@@ -90,7 +90,7 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
         }
     }
 
-    pub unsafe fn set_parent(&mut self, parent: Option<u32>) {
+    pub fn set_parent(&mut self, parent: Option<u32>) {
         // bit position of the flag is 2
         match parent {
             Some(idx) => {
@@ -104,7 +104,7 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
         }
     }
 
-    pub unsafe fn set_is_red(&mut self, is_red: bool) {
+    pub fn set_is_red(&mut self, is_red: bool) {
         if is_red {
             self.flags |= 0b1000;
         } else {
@@ -112,14 +112,14 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
         }
     }
 
-    pub unsafe fn init_node(&mut self, parent: Option<u32>) {
+    pub fn init_node(&mut self, parent: Option<u32>) {
         // Flags set:
         // left = None
         // right = None
         // parent = None
         // is_red = true
         self.flags = 0b1000;
-        unsafe {
+        {
             self.set_parent(parent);
         }
         self.key.fill(0);
@@ -127,7 +127,7 @@ impl<const KSIZE: usize, const VSIZE: usize> Node<KSIZE, VSIZE> {
     }
 
     #[cfg(test)]
-    pub unsafe fn from_raw_parts(
+    pub fn from_raw_parts(
         key: [u8; KSIZE],
         value: [u8; VSIZE],
         left: Option<u32>,
@@ -199,23 +199,22 @@ mod node_tests {
         ($method:ident) => {
             #[test]
             fn $method() {
-                let mut node =
-                    unsafe { Node::<1, 1>::from_raw_parts([1], [2], None, None, None, false) };
+                let mut node = { Node::<1, 1>::from_raw_parts([1], [2], None, None, None, false) };
 
-                unsafe {
+                {
                     paste! {
                         node.[<set_ $method>](Some(1));
                     }
                 }
                 assert_eq!(node.$method(), Some(1));
 
-                unsafe {
+                {
                     paste! {
                         node.[<set_ $method>](Some(2));
                     }
                 }
                 assert_eq!(node.$method(), Some(2));
-                unsafe {
+                {
                     paste! {
                         node.[<set_ $method>](None);
                     }
@@ -237,9 +236,9 @@ mod node_tests {
 
     #[test]
     fn init_node() {
-        let mut node = unsafe { Node::<1, 1>::from_raw_parts([1], [2], None, None, None, false) };
+        let mut node = { Node::<1, 1>::from_raw_parts([1], [2], None, None, None, false) };
 
-        unsafe {
+        {
             node.init_node(Some(1));
         }
 
@@ -248,7 +247,7 @@ mod node_tests {
         assert_eq!(node.parent(), Some(1));
         assert!(node.is_red());
 
-        unsafe {
+        {
             node.init_node(None);
         }
         assert_eq!(node.left(), None);
@@ -256,7 +255,7 @@ mod node_tests {
         assert_eq!(node.parent(), None);
         assert!(node.is_red());
 
-        unsafe {
+        {
             node.init_node(Some(54));
         }
         assert_eq!(node.left(), None);

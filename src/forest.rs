@@ -32,11 +32,11 @@
 //! // check for a specific one.
 //! if !reviews.contains_key(0,"Les Misérables") {
 //!     println!("We've got {} movie reviews, but Les Misérables ain't one.",
-//!              reviews.len(0));
+//!              reviews.len(0).unwrap());
 //! }
 //! if reviews.contains_key(1,"1984") {
 //!     println!("We've got {} book reviews and 1984 among them: {}.",
-//!              reviews.len(0), reviews.get(1, "1984").unwrap());
+//!              reviews.len(0).unwrap(), reviews.get(1, "1984").unwrap());
 //! }
 //!
 //! // oops, this review has a lot of spelling mistakes, let's delete it.
@@ -52,7 +52,7 @@
 //! }
 //!
 //! // iterate over movies.
-//! for (movie, review) in reviews.pairs(0) {
+//! for (movie, review) in reviews.pairs(0).expect("No such tree") {
 //!     println!("{movie}: \"{review}\"");
 //! }
 //!
@@ -65,6 +65,10 @@
 //! # Internal structure
 //! To read about internal data layout, compile docs with `--document-private-items` and see
 //! [`internals`] module.
+
+// Added this, because this lint ignores, that len() method also has different signature
+#![allow(clippy::len_without_is_empty)]
+
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{cast_mut, cast_slice_mut};
 use core::borrow::Borrow;
@@ -125,6 +129,12 @@ pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> 
         return Err(Error::WrongSliceSize);
     }
 
+    if nodes.len() / (mem::size_of::<Node<0, 0>>() + params.k_size + params.v_size)
+        > u32::MAX as usize
+    {
+        return Err(Error::TooBig);
+    }
+
     let header: &mut [[u8; mem::size_of::<Header>()]] = cast_slice_mut(header);
     let header: &mut Header = cast_mut(&mut header[0]);
     let roots: &mut [[u8; 4]] = cast_slice_mut(roots);
@@ -160,15 +170,13 @@ pub fn init_forest(params: ForestParams, slice: &mut [u8]) -> Result<(), Error> 
         *root = u32::to_be_bytes(u32::MAX);
     }
 
-    unsafe {
-        header.fill(
-            params.k_size as u16,
-            params.v_size as u16,
-            nodes_len,
-            params.max_roots as u32,
-            Some(nodes_len - 1),
-        );
-    }
+    header.fill(
+        params.k_size as u16,
+        params.v_size as u16,
+        nodes_len,
+        params.max_roots as u32,
+        Some(nodes_len - 1),
+    );
     Ok(())
 }
 
@@ -219,27 +227,30 @@ where
         let header: &mut Header = cast_mut(&mut header[0]);
         let roots: &mut [[u8; 4]] = cast_slice_mut(roots);
 
-        unsafe {
-            // Allocator initialization
-            nodes[0].set_parent(None);
-
-            for (i, node) in nodes.iter_mut().enumerate().skip(1) {
-                node.set_parent(Some((i - 1) as u32));
-            }
-
-            // Roots initialization
-            for root in roots.iter_mut() {
-                *root = u32::to_be_bytes(u32::MAX);
-            }
-
-            header.fill(
-                KSIZE as u16,
-                VSIZE as u16,
-                nodes.len() as u32,
-                max_roots as u32,
-                Some((nodes.len() - 1) as u32),
-            );
+        if nodes.len() > u32::MAX as usize {
+            return Err(Error::TooBig);
         }
+
+        // Allocator initialization
+        nodes[0].set_parent(None);
+
+        for (i, node) in nodes.iter_mut().enumerate().skip(1) {
+            node.set_parent(Some((i - 1) as u32));
+        }
+
+        // Roots initialization
+        for root in roots.iter_mut() {
+            *root = u32::to_be_bytes(u32::MAX);
+        }
+
+        header.fill(
+            KSIZE as u16,
+            VSIZE as u16,
+            nodes.len() as u32,
+            max_roots as u32,
+            Some((nodes.len() - 1) as u32),
+        );
+
         Ok(Self {
             header,
             nodes,
@@ -282,6 +293,10 @@ where
 
         let nodes: &mut [Node<KSIZE, VSIZE>] = cast_slice_mut(nodes);
 
+        if nodes.len() > u32::MAX as usize {
+            return Err(Error::TooBig);
+        }
+
         if header.k_size() as usize != KSIZE {
             return Err(Error::WrongKeySize);
         }
@@ -308,8 +323,12 @@ where
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     #[must_use]
-    pub fn len(&self, tree_id: usize) -> usize {
-        self.size(self.root(tree_id))
+    pub fn len(&self, tree_id: usize) -> Result<usize, Error> {
+        if self.roots.len() > tree_id {
+            Ok(self.size(self.root(tree_id)))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Returns the maximum number of trees in the forest
@@ -336,19 +355,17 @@ where
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     pub fn clear(&mut self) {
-        unsafe {
-            // Allocator reinitialization
-            self.nodes[0].set_parent(None);
+        // Allocator reinitialization
+        self.nodes[0].set_parent(None);
 
-            for (i, node) in self.nodes.iter_mut().enumerate().skip(1) {
-                node.set_parent(Some((i - 1) as u32));
-            }
-
-            for tree_id in 0..self.roots.len() {
-                self.set_root(tree_id, None);
-            }
-            self.header.set_head(Some((self.nodes.len() - 1) as u32));
+        for (i, node) in self.nodes.iter_mut().enumerate().skip(1) {
+            node.set_parent(Some((i - 1) as u32));
         }
+
+        for tree_id in 0..self.roots.len() {
+            self.set_root(tree_id, None);
+        }
+        self.header.set_head(Some((self.nodes.len() - 1) as u32));
     }
 
     /// Returns true if the map contains a value for the specified key
@@ -360,7 +377,11 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).is_some()
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).is_some()
+        } else {
+            false
+        }
     }
 
     /// Returns a key-value pair corresponding to the supplied key
@@ -372,12 +393,17 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).map(|id| {
-            let node = &self.nodes[id as usize];
-            let node_key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let node_value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (node_key, node_value)
-        })
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).map(|id| {
+                let node = &self.nodes[id];
+                let node_key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let node_value =
+                    V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (node_key, node_value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the value corresponding to the key
@@ -389,34 +415,45 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, k).map(|id| {
-            let node = &self.nodes[id as usize];
-            let node_value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            node_value
-        })
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, k).map(|id| {
+                let node = &self.nodes[id];
+                let node_value =
+                    V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                node_value
+            })
+        } else {
+            None
+        }
     }
 
     /// Inserts a new key-value pair and returns the old value if it was present
     ///
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     pub fn insert(&mut self, tree_id: usize, key: K, value: V) -> Result<Option<V>, Error> {
-        let result = self.put(tree_id, self.root(tree_id), None, key, value);
-        match result {
-            Ok((id, old_val)) => {
-                unsafe {
+        if self.roots.len() > tree_id {
+            let result = self.put(tree_id, self.root(tree_id), None, key, value);
+            match result {
+                Ok((id, old_val)) => {
                     self.set_root(tree_id, Some(id));
                     self.nodes[id as usize].set_is_red(false);
+                    Ok(old_val)
                 }
-                Ok(old_val)
+                Err(e) => Err(e),
             }
-            Err(e) => Err(e),
+        } else {
+            Err(Error::TooBigTreeId)
         }
     }
 
     /// Returns `true` if the tree contains no elements
     #[must_use]
     pub fn is_empty(&self, tree_id: usize) -> bool {
-        self.root(tree_id).is_none()
+        if self.roots.len() > tree_id {
+            self.root(tree_id).is_none()
+        } else {
+            true
+        }
     }
 
     /// Deletes entry and returns deserialized value
@@ -427,13 +464,17 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key).map(|id| {
-            let deallocated_node_id = unsafe { self.delete_node(tree_id, id) };
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key).map(|id| {
+                let deallocated_node_id = { self.delete_node(tree_id, id) };
 
-            let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
-                .expect("Value corrupted");
-            value
-        })
+                let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
+                    .expect("Value corrupted");
+                value
+            })
+        } else {
+            None
+        }
     }
 
     /// Deletes entry and returns deserialized key-value pair
@@ -444,15 +485,19 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key).map(|id| {
-            let deallocated_node_id = unsafe { self.delete_node(tree_id, id) };
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key).map(|id| {
+                let deallocated_node_id = { self.delete_node(tree_id, id) };
 
-            let key = K::deserialize(&mut self.nodes[deallocated_node_id].key.as_slice())
-                .expect("Key corrupted");
-            let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
-                .expect("Value corrupted");
-            (key, value)
-        })
+                let key = K::deserialize(&mut self.nodes[deallocated_node_id].key.as_slice())
+                    .expect("Key corrupted");
+                let value = V::deserialize(&mut self.nodes[deallocated_node_id].value.as_slice())
+                    .expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Deletes entry without deserializing the value.
@@ -463,38 +508,63 @@ where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
-        self.get_key_index(tree_id, key)
-            .map(|id| unsafe {
-                self.delete_node(tree_id, id);
-            })
-            .is_some()
+        if self.roots.len() > tree_id {
+            self.get_key_index(tree_id, key)
+                .map(|id| {
+                    self.delete_node(tree_id, id);
+                })
+                .is_some()
+        } else {
+            false
+        }
     }
 
     /// Creates an iterator over key-value pairs, in order by key
     #[must_use]
-    pub fn pairs<'b>(&'b self, tree_id: usize) -> PairsIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        PairsIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn pairs<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<PairsIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(PairsIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Creates an iterator over keys, from smallest to biggest
     #[must_use]
-    pub fn keys<'b>(&'b self, tree_id: usize) -> KeysIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        KeysIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn keys<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<KeysIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(KeysIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Creates an iterator over values, in order by key
     #[must_use]
-    pub fn values<'b>(&'b self, tree_id: usize) -> ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        ValuesIterator::from_raw_parts(
-            self,
-            self.root(tree_id).map(|root_id| self.min(root_id as usize)),
-        )
+    pub fn values<'b>(
+        &'b self,
+        tree_id: usize,
+    ) -> Result<ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE>, Error> {
+        if self.roots.len() > tree_id {
+            Ok(ValuesIterator::from_raw_parts(
+                self,
+                self.root(tree_id).map(|root_id| self.min(root_id as usize)),
+            ))
+        } else {
+            Err(Error::TooBigTreeId)
+        }
     }
 
     /// Returns the first key-value pair in the map
@@ -502,12 +572,16 @@ where
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     #[must_use]
     pub fn first_entry(&self, tree_id: usize) -> Option<(K, V)> {
-        self.root(tree_id).map(|root_id| {
-            let node = &self.nodes[self.min(root_id as usize)];
-            let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (key, value)
-        })
+        if self.roots.len() > tree_id {
+            self.root(tree_id).map(|root_id| {
+                let node = &self.nodes[self.min(root_id as usize)];
+                let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     /// Returns the last key-value pair in the map
@@ -515,12 +589,16 @@ where
     /// This function runs in `O(log(n))`, where `n` - is the number of nodes
     #[must_use]
     pub fn last_entry(&self, tree_id: usize) -> Option<(K, V)> {
-        self.root(tree_id).map(|root_id| {
-            let node = &self.nodes[self.max(root_id as usize)];
-            let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
-            let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
-            (key, value)
-        })
+        if self.roots.len() > tree_id {
+            self.root(tree_id).map(|root_id| {
+                let node = &self.nodes[self.max(root_id as usize)];
+                let key = K::deserialize(&mut node.key.as_slice()).expect("Key corrupted");
+                let value = V::deserialize(&mut node.value.as_slice()).expect("Value corrupted");
+                (key, value)
+            })
+        } else {
+            None
+        }
     }
 
     fn root(&self, id: usize) -> Option<u32> {
@@ -532,7 +610,7 @@ where
         }
     }
 
-    pub(super) unsafe fn set_root(&mut self, id: usize, root: Option<u32>) {
+    pub(super) fn set_root(&mut self, id: usize, root: Option<u32>) {
         match root {
             Some(idx) => {
                 assert!(idx < u32::MAX);
@@ -578,7 +656,7 @@ where
                     match left_result {
                         Ok((child_id, val)) => {
                             old_val = val;
-                            unsafe {
+                            {
                                 self.nodes[id as usize].set_left(Some(child_id));
                             }
                         }
@@ -596,7 +674,7 @@ where
                     match right_result {
                         Ok((child_id, val)) => {
                             old_val = val;
-                            unsafe {
+                            {
                                 self.nodes[id as usize].set_right(Some(child_id));
                             }
                         }
@@ -619,34 +697,41 @@ where
                     }
                 }
             }
-            unsafe {
-                if self.is_red(self.nodes[id as usize].right())
-                    && !self.is_red(self.nodes[id as usize].left())
-                {
-                    id = self.rotate_left(tree_id, id);
-                }
+            let right_left_subnode = match self.nodes[id as usize].right() {
+                Some(sub_id) => self.nodes[sub_id as usize].left(),
+                None => None,
+            };
 
-                let left_subnode = match self.nodes[id as usize].left() {
-                    Some(sub_id) => self.nodes[sub_id as usize].left(),
-                    None => None,
-                };
+            if self.is_red(self.nodes[id as usize].right()) && self.is_red(right_left_subnode) {
+                self.rotate_right(tree_id, self.nodes[id as usize].right().unwrap());
+            }
 
-                if self.is_red(self.nodes[id as usize].left()) && self.is_red(left_subnode) {
-                    id = self.rotate_right(tree_id, id);
-                }
+            if self.is_red(self.nodes[id as usize].right())
+                && !self.is_red(self.nodes[id as usize].left())
+            {
+                id = self.rotate_left(tree_id, id);
+            }
 
-                if self.is_red(self.nodes[id as usize].right())
-                    && self.is_red(self.nodes[id as usize].left())
-                {
-                    // If nodes are red, they are not Option::None, so unwrap will never fail
-                    let left_id = self.nodes[id as usize].left().unwrap() as usize;
-                    let right_id = self.nodes[id as usize].right().unwrap() as usize;
+            let left_subnode = match self.nodes[id as usize].left() {
+                Some(sub_id) => self.nodes[sub_id as usize].left(),
+                None => None,
+            };
 
-                    // Color swap
-                    self.nodes[left_id].set_is_red(false);
-                    self.nodes[right_id].set_is_red(false);
-                    self.nodes[id as usize].set_is_red(true);
-                }
+            if self.is_red(self.nodes[id as usize].left()) && self.is_red(left_subnode) {
+                id = self.rotate_right(tree_id, id);
+            }
+
+            if self.is_red(self.nodes[id as usize].right())
+                && self.is_red(self.nodes[id as usize].left())
+            {
+                // If nodes are red, they are not Option::None, so unwrap will never fail
+                let left_id = self.nodes[id as usize].left().unwrap() as usize;
+                let right_id = self.nodes[id as usize].right().unwrap() as usize;
+
+                // Color swap
+                self.nodes[left_id].set_is_red(false);
+                self.nodes[right_id].set_is_red(false);
+                self.nodes[id as usize].set_is_red(true);
             }
 
             Ok((id, old_val))
@@ -657,25 +742,19 @@ where
             };
             let new_node = &mut self.nodes[new_id];
 
-            unsafe {
-                new_node.init_node(parent);
-            }
+            new_node.init_node(parent);
 
             // Here it is ok to write directly to slice, because in case of error the node
             // will be deallocated anyway,
             if value.serialize(&mut new_node.value.as_mut_slice()).is_err() {
-                unsafe {
-                    // SAFETY: We are deleting previously allocated empty node, so no invariants
-                    // are changed.
-                    self.deallocate_node(new_id);
-                }
+                // SAFETY: We are deleting previously allocated empty node, so no invariants
+                // are changed.
+                self.deallocate_node(new_id);
                 return Err(Error::ValueSerializationError);
             }
 
             if key.serialize(&mut new_node.key.as_mut_slice()).is_err() {
-                unsafe {
-                    self.deallocate_node(new_id);
-                }
+                self.deallocate_node(new_id);
                 return Err(Error::KeySerializationError);
             }
 
@@ -711,81 +790,77 @@ where
         None
     }
 
-    unsafe fn rotate_left(&mut self, tree_id: usize, h: u32) -> u32 {
+    fn rotate_left(&mut self, tree_id: usize, h: u32) -> u32 {
         let x = self.nodes[h as usize]
             .right()
             .expect("RBTree invariants corrupted: rotate_left on subtree without right child");
 
-        unsafe {
-            self.nodes[h as usize].set_right(self.nodes[x as usize].left());
-            self.nodes[x as usize].set_left(Some(h));
-            self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
-            self.nodes[h as usize].set_is_red(true);
+        self.nodes[h as usize].set_right(self.nodes[x as usize].left());
+        self.nodes[x as usize].set_left(Some(h));
+        self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
+        self.nodes[h as usize].set_is_red(true);
 
-            // fix parents
-            if let Some(parent_id) = self.nodes[h as usize].parent() {
-                let parent_node = &mut self.nodes[parent_id as usize];
-                if parent_node.left() == Some(h) {
-                    parent_node.set_left(Some(x));
-                } else {
-                    debug_assert_eq!(parent_node.right(), Some(h));
-
-                    parent_node.set_right(Some(x));
-                }
+        // fix parents
+        if let Some(parent_id) = self.nodes[h as usize].parent() {
+            let parent_node = &mut self.nodes[parent_id as usize];
+            if parent_node.left() == Some(h) {
+                parent_node.set_left(Some(x));
             } else {
-                self.set_root(tree_id, Some(x));
+                debug_assert_eq!(parent_node.right(), Some(h));
+
+                parent_node.set_right(Some(x));
             }
-            self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
-            self.nodes[h as usize].set_parent(Some(x));
-            if let Some(right) = self.nodes[h as usize].right() {
-                self.nodes[right as usize].set_parent(Some(h));
-            }
+        } else {
+            self.set_root(tree_id, Some(x));
+        }
+        self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
+        self.nodes[h as usize].set_parent(Some(x));
+        if let Some(right) = self.nodes[h as usize].right() {
+            self.nodes[right as usize].set_parent(Some(h));
         }
 
         x
     }
 
-    unsafe fn rotate_right(&mut self, tree_id: usize, h: u32) -> u32 {
+    fn rotate_right(&mut self, tree_id: usize, h: u32) -> u32 {
         let x = self.nodes[h as usize]
             .left()
             .expect("RBTree invariants corrupted: rotate_left on subtree without left child");
 
-        unsafe {
-            self.nodes[h as usize].set_left(self.nodes[x as usize].right());
-            self.nodes[x as usize].set_right(Some(h));
-            self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
-            self.nodes[h as usize].set_is_red(true);
+        self.nodes[h as usize].set_left(self.nodes[x as usize].right());
+        self.nodes[x as usize].set_right(Some(h));
+        self.nodes[x as usize].set_is_red(self.nodes[h as usize].is_red());
+        self.nodes[h as usize].set_is_red(true);
 
-            // fix parents
-            if let Some(parent_id) = self.nodes[h as usize].parent() {
-                let parent_node = &mut self.nodes[parent_id as usize];
-                if parent_node.left() == Some(h) {
-                    parent_node.set_left(Some(x));
-                } else {
-                    debug_assert_eq!(parent_node.right(), Some(h));
-
-                    parent_node.set_right(Some(x));
-                }
+        // fix parents
+        if let Some(parent_id) = self.nodes[h as usize].parent() {
+            let parent_node = &mut self.nodes[parent_id as usize];
+            if parent_node.left() == Some(h) {
+                parent_node.set_left(Some(x));
             } else {
-                self.set_root(tree_id, Some(x));
+                debug_assert_eq!(parent_node.right(), Some(h));
+
+                parent_node.set_right(Some(x));
             }
-            self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
-            self.nodes[h as usize].set_parent(Some(x));
-            if let Some(left) = self.nodes[h as usize].left() {
-                self.nodes[left as usize].set_parent(Some(h));
-            }
+        } else {
+            self.set_root(tree_id, Some(x));
+        }
+        self.nodes[x as usize].set_parent(self.nodes[h as usize].parent());
+        self.nodes[h as usize].set_parent(Some(x));
+        if let Some(left) = self.nodes[h as usize].left() {
+            self.nodes[left as usize].set_parent(Some(h));
         }
 
         x
     }
 
-    unsafe fn delete_node<Q>(&mut self, tree_id: usize, mut id: usize) -> usize
+    fn delete_node<Q>(&mut self, tree_id: usize, mut id: usize) -> usize
     where
         K: Borrow<Q> + Ord,
         Q: Ord + ?Sized,
     {
         if self.nodes[id].left().is_some() && self.nodes[id].right().is_some() {
-            unsafe {
+            {
                 id = self.swap_max_left(id);
             }
         }
@@ -800,12 +875,10 @@ where
                 debug_assert!(!self.nodes[id].is_red());
                 debug_assert!(self.nodes[left_id].is_red());
 
-                unsafe {
-                    self.swap_nodes(id, left_id);
+                self.swap_nodes(id, left_id);
 
-                    self.nodes[id].set_left(None);
-                    self.deallocate_node(left_id);
-                }
+                self.nodes[id].set_left(None);
+                self.deallocate_node(left_id);
 
                 left_id
             }
@@ -815,13 +888,11 @@ where
                 debug_assert!(!self.nodes[id].is_red());
                 debug_assert!(self.nodes[right_id].is_red());
 
-                unsafe {
-                    self.swap_nodes(id, right_id);
+                self.swap_nodes(id, right_id);
 
-                    self.nodes[id].set_right(None);
+                self.nodes[id].set_right(None);
 
-                    self.deallocate_node(right_id);
-                }
+                self.deallocate_node(right_id);
 
                 right_id
             }
@@ -831,7 +902,20 @@ where
                     let parent_id = self.nodes[id].parent().unwrap();
                     let parent_node = &mut self.nodes[parent_id as usize];
 
-                    unsafe {
+                    if parent_node.left() == Some(id as u32) {
+                        parent_node.set_left(None);
+                    } else {
+                        debug_assert_eq!(parent_node.right(), Some(id as u32));
+
+                        parent_node.set_right(None);
+                    }
+
+                    self.deallocate_node(id);
+
+                    id
+                } else {
+                    if let Some(parent_id) = self.nodes[id].parent() {
+                        let parent_node = &mut self.nodes[parent_id as usize];
                         if parent_node.left() == Some(id as u32) {
                             parent_node.set_left(None);
                         } else {
@@ -840,33 +924,12 @@ where
                             parent_node.set_right(None);
                         }
 
-                        self.deallocate_node(id);
-                    }
-
-                    id
-                } else {
-                    if let Some(parent_id) = self.nodes[id].parent() {
-                        let parent_node = &mut self.nodes[parent_id as usize];
-                        unsafe {
-                            if parent_node.left() == Some(id as u32) {
-                                parent_node.set_left(None);
-                            } else {
-                                debug_assert_eq!(parent_node.right(), Some(id as u32));
-
-                                parent_node.set_right(None);
-                            }
-
-                            self.balance_subtree(tree_id, parent_id as usize);
-                        }
+                        self.balance_subtree(tree_id, parent_id as usize);
                     } else {
-                        unsafe {
-                            self.set_root(tree_id, None);
-                        }
+                        self.set_root(tree_id, None);
                     }
 
-                    unsafe {
-                        self.deallocate_node(id);
-                    }
+                    self.deallocate_node(id);
 
                     id
                 }
@@ -875,7 +938,7 @@ where
     }
 
     #[must_use]
-    unsafe fn swap_max_left(&mut self, id: usize) -> usize {
+    fn swap_max_left(&mut self, id: usize) -> usize {
         let mut max_id = self.nodes[id]
             .left()
             .expect("swap_max_left should only be called on nodes with two children")
@@ -885,13 +948,11 @@ where
         }
 
         debug_assert_ne!(id, max_id);
-        unsafe {
-            self.swap_nodes(id, max_id);
-        }
+        self.swap_nodes(id, max_id);
         max_id
     }
 
-    unsafe fn swap_nodes(&mut self, a: usize, b: usize) {
+    fn swap_nodes(&mut self, a: usize, b: usize) {
         let tmp_key = self.nodes[a].key;
         self.nodes[a].key = self.nodes[b].key;
         self.nodes[b].key = tmp_key;
@@ -901,7 +962,7 @@ where
         self.nodes[b].value = tmp_value;
     }
 
-    unsafe fn balance_subtree(&mut self, tree_id: usize, id: usize) {
+    fn balance_subtree(&mut self, tree_id: usize, id: usize) {
         let left_child = self.nodes[id].left();
         let right_child = self.nodes[id].right();
         let left_depth = self.black_depth(left_child);
@@ -916,24 +977,24 @@ where
                     let left_grandchild = self.nodes[left_id].left();
                     let right_grandchild = self.nodes[left_id].right();
                     match (self.is_red(left_grandchild), self.is_red(right_grandchild)) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.nodes[id].set_is_red(false);
                             self.nodes[left_id].set_is_red(true);
-                        },
-                        (true, _) => unsafe {
+                        }
+                        (true, _) => {
                             self.rotate_right(tree_id, id as u32);
 
                             self.nodes[id].set_is_red(false);
                             self.nodes[left_id].set_is_red(true);
                             // left_grandchild is red, so it exists
                             self.nodes[left_grandchild.unwrap() as usize].set_is_red(false);
-                        },
-                        (false, true) => unsafe {
+                        }
+                        (false, true) => {
                             self.rotate_left(tree_id, left_id as u32);
                             self.rotate_right(tree_id, id as u32);
                             // right_grandchild is red, so it exists
                             self.nodes[right_grandchild.unwrap() as usize].set_is_red(false);
-                        },
+                        }
                     }
                 } else if self.nodes[left_id].is_red() {
                     debug_assert!(!self.is_red(self.nodes[left_id].left()));
@@ -949,20 +1010,20 @@ where
                         self.is_red(left_grandgrandchild),
                         self.is_red(right_grandgrandchild),
                     ) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.rotate_right(tree_id, id as u32);
                             self.nodes[id].set_is_red(false);
                             self.nodes[right_grandchild].set_is_red(true);
-                        },
-                        (true, _) => unsafe {
+                        }
+                        (true, _) => {
                             self.rotate_left(tree_id, left_id as u32);
                             self.rotate_right(tree_id, id as u32);
                             // left_grandgrandchild is red, so it always exists
                             self.nodes[left_grandgrandchild.unwrap() as usize].set_is_red(false);
                             self.nodes[right_grandchild].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
-                        (false, true) => unsafe {
+                        }
+                        (false, true) => {
                             self.rotate_left(tree_id, right_grandchild as u32);
                             self.rotate_left(tree_id, left_id as u32);
                             self.rotate_right(tree_id, id as u32);
@@ -970,30 +1031,30 @@ where
                             self.nodes[right_grandgrandchild.unwrap() as usize].set_is_red(false);
                             self.nodes[right_grandchild].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
+                        }
                     }
                 } else {
                     let left_grandchild = self.nodes[left_id].left();
                     let right_grandchild = self.nodes[left_id].right();
 
                     match (self.is_red(left_grandchild), self.is_red(right_grandchild)) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.nodes[left_id].set_is_red(true);
                             if let Some(parent_id) = self.nodes[id].parent() {
                                 self.balance_subtree(tree_id, parent_id as usize);
                             }
-                        },
-                        (_, true) => unsafe {
+                        }
+                        (_, true) => {
                             self.rotate_left(tree_id, left_id as u32);
                             self.rotate_right(tree_id, id as u32);
                             self.nodes[left_id].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
-                        (true, false) => unsafe {
+                        }
+                        (true, false) => {
                             self.nodes[left_grandchild.unwrap() as usize].set_is_red(false);
                             self.rotate_right(tree_id, id as u32);
                             self.nodes[id].set_is_red(false);
-                        },
+                        }
                     }
                 }
             }
@@ -1006,24 +1067,24 @@ where
                     let right_grandchild = self.nodes[right_id].right();
                     let left_grandchild = self.nodes[right_id].left();
                     match (self.is_red(right_grandchild), self.is_red(left_grandchild)) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.nodes[id].set_is_red(false);
                             self.nodes[right_id].set_is_red(true);
-                        },
-                        (true, _) => unsafe {
+                        }
+                        (true, _) => {
                             self.rotate_left(tree_id, id as u32);
 
                             self.nodes[id].set_is_red(false);
                             self.nodes[right_id].set_is_red(true);
                             // right_grandchild is red, so it always exists
                             self.nodes[right_grandchild.unwrap() as usize].set_is_red(false);
-                        },
-                        (false, true) => unsafe {
+                        }
+                        (false, true) => {
                             self.rotate_right(tree_id, right_id as u32);
                             self.rotate_left(tree_id, id as u32);
                             // right_grandchild is red, so it always exists
                             self.nodes[left_grandchild.unwrap() as usize].set_is_red(false);
-                        },
+                        }
                     }
                 } else if self.nodes[right_id].is_red() {
                     debug_assert!(!self.is_red(self.nodes[right_id].right()));
@@ -1039,20 +1100,20 @@ where
                         self.is_red(right_grandgrandchild),
                         self.is_red(left_grandgrandchild),
                     ) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.rotate_left(tree_id, id as u32);
                             self.nodes[id].set_is_red(false);
                             self.nodes[left_grandchild].set_is_red(true);
-                        },
-                        (true, _) => unsafe {
+                        }
+                        (true, _) => {
                             self.rotate_right(tree_id, right_id as u32);
                             self.rotate_left(tree_id, id as u32);
                             // right_grandgrandchild is red, so it always exists
                             self.nodes[right_grandgrandchild.unwrap() as usize].set_is_red(false);
                             self.nodes[left_grandchild].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
-                        (false, true) => unsafe {
+                        }
+                        (false, true) => {
                             self.rotate_right(tree_id, left_grandchild as u32);
                             self.rotate_right(tree_id, right_id as u32);
                             self.rotate_left(tree_id, id as u32);
@@ -1060,31 +1121,31 @@ where
                             self.nodes[left_grandgrandchild.unwrap() as usize].set_is_red(false);
                             self.nodes[left_grandchild].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
+                        }
                     }
                 } else {
                     let right_grandchild = self.nodes[right_id].right();
                     let left_grandchild = self.nodes[right_id].left();
 
                     match (self.is_red(right_grandchild), self.is_red(left_grandchild)) {
-                        (false, false) => unsafe {
+                        (false, false) => {
                             self.nodes[right_id].set_is_red(true);
                             if let Some(parent_id) = self.nodes[id].parent() {
                                 self.balance_subtree(tree_id, parent_id as usize);
                             }
-                        },
-                        (_, true) => unsafe {
+                        }
+                        (_, true) => {
                             self.rotate_right(tree_id, right_id as u32);
                             self.rotate_left(tree_id, id as u32);
                             self.nodes[right_id].set_is_red(false);
                             self.nodes[id].set_is_red(false);
-                        },
-                        (true, false) => unsafe {
+                        }
+                        (true, false) => {
                             // right_grandchild is red, so it always exists
                             self.nodes[right_grandchild.unwrap() as usize].set_is_red(false);
                             self.rotate_left(tree_id, id as u32);
                             self.nodes[id].set_is_red(false);
-                        },
+                        }
                     }
                 }
             }
@@ -1112,14 +1173,12 @@ where
     ///
     /// This function does nothing but deallocation. It should be checked, that the node is
     /// completely unlinked from the tree.
-    unsafe fn deallocate_node(&mut self, index: usize) {
+    fn deallocate_node(&mut self, index: usize) {
         let allocator_head = self.header.head();
         let node_index = Some(index as u32);
 
-        unsafe {
-            self.nodes[index].set_parent(allocator_head);
-            self.header.set_head(node_index);
-        }
+        self.nodes[index].set_parent(allocator_head);
+        self.header.set_head(node_index);
     }
 
     /// Allocates a node
@@ -1135,9 +1194,7 @@ where
         match allocator_head {
             Some(index) => {
                 let new_head = self.nodes[index as usize].parent();
-                unsafe {
-                    self.header.set_head(new_head);
-                }
+                self.header.set_head(new_head);
                 Some(index as usize)
             }
             None => None,
@@ -1165,13 +1222,40 @@ where
     K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
     V: BorshDeserialize + BorshSerialize + fmt::Debug,
 {
+    #[cfg(not(test))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         let max_roots = self.max_roots();
         f.debug_map()
             .entries((0..max_roots).map(|i| (i, self.pairs(i))))
             .finish()
     }
+
+    #[cfg(test)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        f.debug_struct("RBForest")
+            .field("header", self.header)
+            .field(
+                "roots",
+                &self
+                    .roots
+                    .iter()
+                    .map(|x| {
+                        let num = u32::from_be_bytes(*x);
+                        if num == u32::MAX {
+                            None
+                        } else {
+                            Some(num)
+                        }
+                    })
+                    .collect::<Vec<_>>(),
+            )
+            .field("nodes", &self.nodes)
+            .finish()
+    }
 }
 
 #[cfg(test)]
 pub(super) mod tests;
+
+#[cfg(any(test, fuzzing))]
+pub mod internal_checks;

@@ -1,0 +1,34 @@
+[package]
+name = "slice-rbtree-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = { version = "0.4.0", features = ["arbitrary-derive"] }
+
+[dependencies.slice-rbtree]
+path = ".."
+features = ["arbitrary"]
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+[[bin]]
+name = "rbtree"
+path = "fuzz_targets/rbtree.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rbforest"
+path = "fuzz_targets/rbforest.rs"
+test = false
+doc = false

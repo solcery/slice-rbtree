@@ -45,7 +45,7 @@ fn access_one_value(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
@@ -69,7 +69,6 @@ fn access_one_value(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             let map = unsafe {
                 RBTree::<
                     u32,
@@ -102,7 +101,7 @@ fn deserialization(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
@@ -130,7 +129,6 @@ fn deserialization(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             b.iter(|| {
                 let map = unsafe {
                     RBTree::<
@@ -165,7 +163,7 @@ fn insert_one_value(c: &mut Criterion) {
     for i in SIZES {
         group.bench_with_input(BenchmarkId::new("BTreeMap", i), &i, |b, i| {
             let map = (0..*i)
-                .map(|i: u32| (i as u32, MyType::gen(i.to_le_bytes()[0])))
+                .map(|i: u32| (i, MyType::gen(i.to_le_bytes()[0])))
                 .collect::<BTreeMap<u32, MyType>>();
 
             map.serialize(&mut map_buffer.as_mut_slice()).unwrap();
@@ -193,7 +191,6 @@ fn insert_one_value(c: &mut Criterion) {
                     .insert(j, MyType::gen(j.to_le_bytes()[0]))
                     .unwrap();
             }
-            drop(slice_map);
             let mut map = unsafe {
                 RBTree::<
                     u32,

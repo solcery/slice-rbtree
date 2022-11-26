@@ -48,7 +48,7 @@ impl Header {
         }
     }
 
-    pub unsafe fn set_head(&mut self, head: Option<u32>) {
+    pub fn set_head(&mut self, head: Option<u32>) {
         match head {
             Some(idx) => {
                 assert!(idx < u32::MAX);
@@ -61,7 +61,7 @@ impl Header {
     }
 
     /// This function guarantees, that the header will be initialized in fully known state
-    pub unsafe fn fill(
+    pub fn fill(
         &mut self,
         k_size: u16,
         v_size: u16,
@@ -74,7 +74,7 @@ impl Header {
         self.max_nodes = u32::to_be_bytes(max_nodes);
         self.max_roots = u32::to_be_bytes(max_roots);
         self.magic = HEADER_MAGIC;
-        unsafe {
+        {
             self.set_head(head);
         }
     }
@@ -84,7 +84,7 @@ impl Header {
     }
 
     #[cfg(test)]
-    unsafe fn from_raw_parts(
+    fn from_raw_parts(
         k_size: u16,
         v_size: u16,
         max_nodes: u32,
@@ -133,18 +133,18 @@ mod header_tests {
 
     #[test]
     fn head() {
-        let mut head = unsafe { Header::from_raw_parts(1, 2, 3, 5, None) };
+        let mut head = { Header::from_raw_parts(1, 2, 3, 5, None) };
 
-        unsafe {
+        {
             head.set_head(Some(1));
         }
         assert_eq!(head.head(), Some(1));
 
-        unsafe {
+        {
             head.set_head(Some(2));
         }
         assert_eq!(head.head(), Some(2));
-        unsafe {
+        {
             paste! {
                 head.set_head(None);
             }

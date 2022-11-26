@@ -1,8 +1,11 @@
 # slice-rbtree
 [![codecov](https://codecov.io/gh/solcery/slice-rbtree/branch/dev/graph/badge.svg?token=FCL7OIFKCE)](https://codecov.io/gh/solcery/slice-rbtree)
-[![Unit Tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
+[![tests](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml/badge.svg)](https://github.com/solcery/slice-rbtree/actions/workflows/tests.yml)
+[![crate](https://img.shields.io/crates/v/slice-rbtree.svg)](https://crates.io/crates/slice-rbtree)
+[![documentation](https://docs.rs/slice-rbtree/badge.svg)](https://docs.rs/slice-rbtree)
 
 A `#[no_std]` [Red-Black tree][2], fully packed in a single slice of bytes
+
 Originally developed for storing data in [Solana][0] [Accounts][1], this crate allows you to
 access tree nodes without deserializing the whole tree. It is useful when you have a huge
 tree in raw memory, but want to interact only with a few values at a time.
@@ -106,13 +109,13 @@ reviews.insert(1, "The Lord of the Rings".to_string(), "Poor Gollum.".to_string(
 if !reviews.contains_key(0, "Les Misérables") {
     println!(
         "We've got {} movie reviews, but Les Misérables ain't one.",
-        reviews.len(0)
+        reviews.len(0).expect("No such tree")
     );
 }
 if reviews.contains_key(1, "1984") {
     println!(
         "We've got {} book reviews and 1984 among them: {}.",
-        reviews.len(0),
+        reviews.len(0).expect("No such tree"),
         reviews.get(1, "1984").unwrap()
     );
 }
@@ -130,7 +133,7 @@ for movie in &to_find {
 }
 
 // iterate over movies.
-for (movie, review) in reviews.pairs(0) {
+for (movie, review) in reviews.pairs(0).expect("No such tree") {
     println!("{movie}: \"{review}\"");
 }
 ///

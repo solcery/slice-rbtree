@@ -128,14 +128,14 @@ where
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     #[must_use]
     pub fn len(&self) -> usize {
-        self.0.len(0)
+        self.0.len(0).unwrap()
     }
 
     /// Clears the tree
     ///
     /// This function runs in `O(n)`, where `n` - is the number of nodes
     pub fn clear(&mut self) {
-        self.0.clear()
+        self.0.clear();
     }
 
     /// Returns the number of free nodes
@@ -247,19 +247,19 @@ where
     /// Creates an iterator over key-value pairs, in order by key
     #[must_use]
     pub fn pairs<'b>(&'b self) -> PairsIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.pairs(0)
+        self.0.pairs(0).unwrap()
     }
 
     /// Creates an iterator over keys, from smallest to biggest
     #[must_use]
     pub fn keys<'b>(&'b self) -> KeysIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.keys(0)
+        self.0.keys(0).unwrap()
     }
 
     /// Creates an iterator over values, in order by key
     #[must_use]
     pub fn values<'b>(&'b self) -> ValuesIterator<'b, 'a, K, V, KSIZE, VSIZE> {
-        self.0.values(0)
+        self.0.values(0).unwrap()
     }
 }
 
@@ -268,10 +268,31 @@ where
     K: Ord + BorshDeserialize + BorshSerialize + fmt::Debug,
     V: BorshDeserialize + BorshSerialize + fmt::Debug,
 {
+    #[cfg(not(test))]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         f.debug_map().entries(self.pairs()).finish()
+    }
+    #[cfg(test)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        self.0.fmt(f)
+    }
+}
+
+impl<'a, K, V, const KSIZE: usize, const VSIZE: usize> Extend<(K, V)>
+    for RBTree<'a, K, V, KSIZE, VSIZE>
+where
+    K: Ord + BorshDeserialize + BorshSerialize,
+    V: BorshDeserialize + BorshSerialize,
+{
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
+        for elem in iter {
+            self.insert(elem.0, elem.1).unwrap();
+        }
     }
 }
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(any(test, fuzzing))]
+pub mod internal_checks;

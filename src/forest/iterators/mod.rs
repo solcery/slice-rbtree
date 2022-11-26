@@ -1,9 +1,8 @@
 //! Iterators over [`RBTree`](crate::tree::RBTree) and [`RBForest`](crate::forest::RBForest)
 use borsh::{BorshDeserialize, BorshSerialize};
-
 use core::cmp::Ord;
-
 use core::fmt;
+use core::iter::FusedIterator;
 
 use super::RBForest;
 
@@ -63,6 +62,14 @@ where
             (key, value)
         })
     }
+}
+
+impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> FusedIterator
+    for PairsIterator<'a, 'b, K, V, KSIZE, VSIZE>
+where
+    K: Ord + BorshDeserialize + BorshSerialize,
+    V: BorshDeserialize + BorshSerialize,
+{
 }
 
 impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug
@@ -139,6 +146,14 @@ where
     }
 }
 
+impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> FusedIterator
+    for KeysIterator<'a, 'b, K, V, KSIZE, VSIZE>
+where
+    K: Ord + BorshDeserialize + BorshSerialize,
+    V: BorshDeserialize + BorshSerialize,
+{
+}
+
 impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug
     for KeysIterator<'a, 'b, K, V, KSIZE, VSIZE>
 where
@@ -212,6 +227,14 @@ where
             value
         })
     }
+}
+
+impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> FusedIterator
+    for ValuesIterator<'a, 'b, K, V, KSIZE, VSIZE>
+where
+    K: Ord + BorshDeserialize + BorshSerialize,
+    V: BorshDeserialize + BorshSerialize,
+{
 }
 
 impl<'a, 'b, K, V, const KSIZE: usize, const VSIZE: usize> fmt::Debug

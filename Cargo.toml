@@ -1,6 +1,6 @@
 [package]
 name = "slice-rbtree"
-version = "0.1.0-alpha.1"
+version = "0.1.0"
 repository = "https://github.com/solcery/slice-rbtree/"
 description = "A slice-based Red-black tree"
 edition = "2021"
@@ -10,9 +10,12 @@ categories = ["data-structures", "embedded", "no-std"]
 license = "Apache-2.0"
 exclude = [
     "assets/*",
+    "benches/*",
+    "fuzz/*",
 ]
 
 [dependencies]
+arbitrary = { version = "1", optional = true, features = ["derive"] }
 borsh = { version = "0.9.1", default_features = false, features = ["const-generics"] }
 bytemuck = { version = "1.7.2", features = ['derive','min_const_generics'] }
 

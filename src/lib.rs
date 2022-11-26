@@ -2,7 +2,7 @@
 #![deny(unsafe_op_in_unsafe_fn)]
 #![deny(missing_debug_implementations)]
 #![deny(missing_docs)]
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(not(any(test, internal_checks, fuzzing)), no_std)]
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
@@ -16,6 +16,9 @@ pub enum Error {
     KeySerializationError,
     /// no free nodes left in the slice
     NoNodesLeft,
+    /// the provided slice is too big for the map: the map internally uses `u32` indices, so there
+    /// can't be more than `u32::MAX` nodes
+    TooBig,
     /// the provided slice is too small for the map
     TooSmall,
     /// failed to serialize value to value buffer, maybe it is too big?
@@ -30,4 +33,6 @@ pub enum Error {
     WrongSliceSize,
     /// value size of the map does not match key size of the type
     WrongValueSize,
+    /// There are fewer trees than the supplied tree_id
+    TooBigTreeId,
 }
